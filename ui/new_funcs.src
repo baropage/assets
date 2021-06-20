@@ -1,0 +1,68 @@
+dev.removeFuncs(&s, fa, path) {
+        rst="", deleteCount=0;
+        while(s.valid()) {
+            left=s.findPos("<?func", 0, 1);
+            rst.add(left);
+            not(s.ch()) break;
+            a=s.match("<?func", "?>");
+            if(typeof(a,"bool")) {
+                line=s.findPos("\n");
+                not(line.ch()) {
+                    s.ch();
+                    line=s.findPos("\n");
+                }
+                return print("함수 그룹 매칭오류 (라인:$line)");
+                
+            }
+            line=a.findPos("\n").trim();
+            Cf.error(true);
+            delete=null;
+            src=parse(a);
+            err=Cf.error();
+            if(err) return err;
+            if(delete) {
+                deleteCount++;
+                if(src.ch()) rst.add("<?func",line,"\n", src,"\n?>\n");
+            } else {
+                rst.add("<?func",line,"\n", src,"\n?>\n");
+            }
+            
+        }
+        return rst;
+        
+        parse=func(s) {
+            rst="";
+            fn=Cf.funcNode("parent");
+            fn.set("delete", false);
+            while(s.valid()) {
+                ch=s.ch();
+                comment="";
+                while(ch.eq('/'), idx) {
+                    if(idx) comment.add("\n");
+                    if(s.ch(1)=='*') {
+                        comment.add(s.match() );
+                    } else {
+                        comment.add(s.findPos("\n"));
+                    }
+                    ch=s.ch();
+                }
+                find=false;
+                fnm=s.findPos("(").trim();
+                fparam=s.findPos(")"). trim();
+                not(s.ch("{")) return print("함수 $fnm 시작오류");
+                a=s.match(1);
+                if(typeof(a,"bool")) return print("함수 $fnm 매칭오류");
+                while(name, fa) {
+                    if(fnm.eq(name))) {
+                        fn.set("delete", true);
+                        find=true;
+                        break;
+                    }
+                }
+                if(find) continue;
+                if(comment) {
+                    rst.add("/*", comment, "*/\n");
+                }
+            }
+        };
+    }

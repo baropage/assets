@@ -1,0 +1,17 @@
+#top_logo {
+    margin: 15px;
+    overflow: hidden;
+}
+#top_logo a {
+    display: block;
+    height: 40px;
+}
+#top_logo p {
+    display: inline-block;
+    line-height: 50px;
+}
+
+#top_logo img {
+    display: inline-block;
+    width: 25px;
+}

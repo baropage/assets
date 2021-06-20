@@ -1,0 +1,134 @@
+.big-zoom-btn {
+  position: absolute;
+  background-color: #202421;
+  display: block;
+  color: #fff;
+  top: 50%;
+  left: 50%;
+  text-align: center;
+  padding: 80px;
+  transform: translate(-50%, -50%);
+  text-transform: uppercase;
+  text-decoration: none;
+  letter-spacing: 0.1em;
+}
+
+/* Icons */
+.icons {
+  position: absolute;
+  top: 50%;
+  transform: translate(40px, -50%);
+  transition: all 500ms ease;
+}
+
+.icons-active {
+  transform: translate(290px, -50%);
+}
+
+.icons a {
+  display: block;
+  width: 60px;
+  height: 60px;
+  border-radius: 40px;
+  margin: 20px 0;
+  position: relative;
+  top: 0;
+  transform: translateX(-100px);
+  transition: all 500ms ease;
+}
+
+.icons .icon-map {
+  background-color: #EA7E56;
+}
+
+.icons .icon-levels {
+  background-color: #51614C;
+}
+
+.icons .icon-floorplans {
+  background-color: #647583;
+}
+
+.icons .icon-map-active {
+  top: -100px;
+}
+
+.icons .drawer-trigger-active {
+  top: -40px;
+}
+
+/* Icons slide in when map zooms in */
+@keyframes slideIn {
+  0% {transform: translateX(-100px);}
+  40% {transform: translateX(-100px);}
+  90% {transform: translateX(20px);}
+  95% {transform: translateX(15px);}
+  98% {transform: translateX(10px);}
+  100% {transform: translateX(0);}
+}
+
+.icons .icon-map-show {
+  animation: slideIn 0.2s ease-in forwards;
+}
+
+.icons .icon-levels-show {
+  animation: slideIn 0.4s ease-in forwards;
+}
+
+.icons .icon-floorplans-show {
+  animation: slideIn 0.6s ease-in forwards;
+}
+
+/* Icons slide out when map zooms out */
+@keyframes slideOut {
+  0% {transform: translateX(0);}
+  100% {transform: translateX(-100px);}
+}
+
+.icons .icon-map-hide {
+  animation: slideOut 0.2s ease-in forwards;
+}
+
+.icons .icon-levels-hide {
+  animation: slideOut 0.4s ease-in forwards;
+}
+
+.icons .icon-floorplans-hide {
+  animation: slideOut 0.6s ease-in forwards;
+}
+
+/* Levels and floorplans active state on click */
+.icon-active {
+  box-shadow: 0px 0px 0px 5px #202421;
+}
+
+/* Middle or bottom button is clicked and triggers drawer */
+.drawer {
+  background-color: #51614C;
+  position: absolute;
+  top: 50%;
+  transform: translate(-300px, -50%);
+  height: 600px;
+  width: 250px;
+  transition: all 500ms ease;
+}
+
+.drawer-active {
+  transform: translate(0, -50%);
+}
+
+.drawer-floorplans {
+  background-color: #647583;
+}
+
+.drawer-close {
+  background-color: #202421;
+  display: block;
+  width: 40px;
+  height: 40px;
+  border-radius: 30px;
+  position: absolute;
+  right: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+}
