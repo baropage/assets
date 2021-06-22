@@ -11,9 +11,9 @@
 var requirejs, define;
 var require = {
 	// baseUrl: window.location.protocol + "//" + window.location.host + window.location.pathname.split("/").slice(0, -1).join("/"),
-	baseUrl: "https://cdn.jsdelivr.net/gh/baropage/assets/ace",
+	baseUrl: "/assets/plugin/editor",
 	paths: {
-		ace: "https://cdn.jsdelivr.net/gh/baropage/assets/ace"
+		ace: "/assets/ace"
 	},
 	waitSeconds: 30
 };

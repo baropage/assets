@@ -40,6 +40,30 @@ function getPageValue(id) {
 	}
 	return id+" 로컬 변수값이 설정되지 않았습니다";
 }
+function loadScript(src, func) {
+	var script = document.createElement('script');
+	script.setAttribute('type', "text/javascript");
+	script.setAttribute('src', src);
+	document.body.appendChild(script);
+	// script.setAttribute('async', '');
+	if(typeof func=="function") {
+		console.log("script load ", src, data)
+		script.onload = func;
+	}
+}
+function loadScriptData(src, data, func) {
+	var h=document.getElementsByTagName('head')[0];
+    var s=document.createElement("script");
+    s.setAttribute("type","text/javascript");
+    s.setAttribute("data-main", data);
+    s.setAttribute("src", src);
+    h.appendChild(s);
+	// script.setAttribute('async', '');
+	if(typeof func=="function") {
+		console.log("script load ", src, data)
+		s.onload = func;
+	}
+}
 function addOpt(sel, val, text, selected) {
     if(!sel) return;
     var opt=document.createElement("option");
@@ -578,9 +602,19 @@ function createW2Button(id, icon, text, click, sty, color) {
 	if(sty) btnEl.style=sty;
 	if(iconEl) btnEl.appendChild(iconEl);
 	btnEl.appendChild(textEl);
-	if(typeof click=="function" ) btnEl.onclick=click;
+	if(typeof click=="function" ) {
+	    btnEl.onclick=click;
+	} else if( typeof clickButton=="function" ) {
+	    btnEl.onclick=function() {
+	        clickButton(this);
+	    }
+	}
 	cf[bid]=btnEl;
 	return btnEl;
+}
+
+function makeButton(id, icon, text, sty, color) {
+	return createW2Button(id, icon, text, null, sty, color);
 }
 function w2popupClose() {
 	w2popup.close();
