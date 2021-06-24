@@ -547,6 +547,17 @@ function ajaxForm(url, formData, successFunc, errorFunc) {
 	});
 }
 
+function ajaxPost(url, data, successFunc, errorFunc) {
+	if(typeof errorFunc !='function' ) errorFunc=defaultErrorFunc;
+	$.ajax({
+		url:url, type:'post', dataType:'json',
+		data: data,
+		processData:false, contentType:false, cache:false,
+		success: successFunc,
+		error: errorFunc
+	});
+}
+
 function ajaxJson(url, successFunc, errorFunc) {
 	if(typeof errorFunc !='function' ) errorFunc=defaultErrorFunc;
 	$.ajax({
