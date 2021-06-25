@@ -21,7 +21,11 @@ Array.prototype.remove = function(from, to) {
   this.length = from < 0 ? this.length + from : from;
   return this.push.apply(this, rest);
 };
-
+function startPage() {
+    if(typeof initPage=="function" ) {
+        initPage();
+    }
+}
 function tpl(str, data) {
     if(!str) str="템플릿 데이터 미정의";
     var func=Template7(str).compile();
@@ -31,6 +35,9 @@ function tplFunc(name, func) {
     if(typeof func=="function") {
         Template7.registerHelper(name, func);
     }
+}
+function makeTemplate(templateCode, data) {
+    return tpl(getPageValue(templateCode), data);
 }
 
 function getPageValue(id) {
