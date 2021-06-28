@@ -21,24 +21,8 @@ Array.prototype.remove = function(from, to) {
   this.length = from < 0 ? this.length + from : from;
   return this.push.apply(this, rest);
 };
-function startPage() {
-    if(typeof initPage=="function" ) {
-        initPage();
-    }
-}
-function tpl(str, data) {
-    if(!str) str="템플릿 데이터 미정의";
-    var func=Template7(str).compile();
-    return data? func(data): func;
-}
-function tplFunc(name, func) {
-    if(typeof func=="function") {
-        Template7.registerHelper(name, func);
-    }
-}
-function makeTemplate(templateCode, data) {
-    return tpl(getPageValue(templateCode), data);
-}
+
+
 
 function getPageValue(id) {
 	var el=getEl("w2-"+id);
@@ -47,6 +31,57 @@ function getPageValue(id) {
 	}
 	return id+" 로컬 변수값이 설정되지 않았습니다";
 }
+
+function startPage() {
+    if(typeof initPage=="function" ) {
+        initPage();
+    }
+    if(Array.isArray(cf.initModules) ) {
+		for( var module of cf.initModules ) {
+		    console.log("module call ", module);
+			if(typeof module.func=='function') {
+			    module.func();   
+			}
+		}
+	}
+}
+function addPageModule(mtype, mname, func ) {
+    if(typeof mtype=='function') {
+        func=mtype;
+        mtype='initModules';
+        mname='common';
+    }
+    if( mname && mtype ) {
+	    if(!cf[mtype] ) cf[mtype]=[];
+	    var module={name: mname, func: func};
+	    cf[mtype].push(module);
+    }
+}
+
+function tpl(str, data) {
+	var func=null;
+	if(typeof str == 'object' ) {
+		var code=data;
+		data=str;
+		if(!code) {
+			str="템플릿 코드 오류 ";
+		} else {
+			str=getPageValue(code);
+			if(!str) str=code+" 템플릿 코드 오류 ";
+		}
+		func=Template7(str).compile();
+	} else {
+		if(!str) str="템플릿 데이터 미정의";
+		func=Template7(str).compile();
+	}
+    return data && func ? func(data): func;
+}
+function tplFunc(name, func) {
+    if(typeof func=="function") {
+        Template7.registerHelper(name, func);
+    }
+}
+
 function loadScript(src, func) {
 	var script = document.createElement('script');
 	script.setAttribute('type', "text/javascript");
