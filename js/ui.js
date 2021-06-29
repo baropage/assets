@@ -295,7 +295,7 @@ function setLayout(id, opt) {
 	return cf.layout;
 }
 function setLayoutFunc(func) {
-	cf.windowResizeFunc=func;
+	cf.windowResizeFunc=isFunc(func)?func:null;
 	$(window).resize(function() { callLayoutHeight() });
 	callLayoutHeight();
 }
@@ -309,8 +309,12 @@ function setLayoutHeight(id) {
 	if(!id ) id=cf.layoutResizeId;
 	cf.tick=Date.now();
 	mainLayoutHeight(id);
-	if(typeof cf.windowResizeFunc=="function" ) {
+	
+	if(isFunc(cf.windowResizeFunc) ) {
 		cf.windowResizeFunc();
+	}
+	if(isArr(cf.resizeFuncs) ) {
+		for(func of cf.resizeFuncs ) func(height);
 	}
 }
 function mainLayoutHeight(id) {
@@ -320,9 +324,16 @@ function mainLayoutHeight(id) {
 	console.log("layout height == "+height+", id == "+id);
 	$(eid(id)).height(height);
 	if(!cf.layout) {
-		cf.layout=ui("main");
+		cf.layout=w2ui.layout;
 	}
 	if(cf.layout) cf.layout.resize();
+	return height;
+}
+function layoutHeigth(func) {
+	if(!isArr(cf.resizeFuncs) ) cf.resizeFuncs=[];
+	if(isFunc(func)) {
+		cf.resizeFuncs.push(func);
+	}
 }
 
 function resizeEditor(id) {
@@ -341,12 +352,11 @@ function resizeEditor(id) {
 	}
 }
 
-function setLayoutStretch(stretchId, panelId) {
+function setLayoutStretch(stretchId, el) {
 	if(!cf.layout ) {
 		return false;
 	}
-	var el=typeof panelId=="object" ? panelId: getLayoutPanel(panelId);
-	console.log("setLayoutStretch el==", el, cf);
+	console.log("setLayoutStretch el==", el);
 	if(el) {
 		var totalHeight=0, contentHeight=$(el).height();
 		var stretchEl=null;
@@ -364,25 +374,6 @@ function setLayoutStretch(stretchId, panelId) {
 			stretchEl.height(dist-10);
 		}
 	}
-}
-
-
-function setLayoutContent() {
-	if(!cf.layout ) {
-		return false;
-	}
-	if(arguments.length==1 ) {
-		cf.layout.content("main", arguments[0]);
-	} else if(arguments.length==2 ) {
-		cf.layout.content(arguments[0], arguments[0]);
-	}
-}
-function getLayoutPanel(panelId) {
-	if(!cf.layout ) {
-		return false;
-	}
-	if(!panelId ) panelId="main";
-	return cf.layout.el(panelId);
 }
 
 function ui(name) {
@@ -544,63 +535,6 @@ function findItemText(arr, text) {
 /*
 	ui interface
 */
-function makeTabContent(targetId, panel, cid) {
-	if(!panel) panel=getLayoutPanel();
-	if(!cid) cid='content';
-	var ctt=$(panel).find(">#"+cid);
-	if( !Array.isArray(cf.tabContents) ) {
-		cf.tabContents=[];
-	}
-	var div=null;
-	var contentId="content_"+targetId;
-	for(var n=0;n<cf.tabContents.length; n++) {
-		var cur=cf.tabContents[n];
-		if(cur.id==contentId) {
-			div=cur;
-		} else {
-			$(cur).hide();
-		}
-	}
-	if(div==null ) {
-		div=document.createElement("div");
-		div.id=contentId;
-		div.style="width:100%; height:100%; background-color:#fff;";
-		ctt.append(div);
-		cf.tabContents.push(div);
-	}
-	$(div).show();
-	return contentId;
-}
-function makeTabIframe( targetId, src, panel, cid) {
-	if(!panel) panel=getLayoutPanel();
-	if(!cid) cid='content';
-	var ctt=$(panel).find(">#"+cid);
-	if( !Array.isArray(cf.tabIframes) ) {
-		cf.tabIframes=[];
-	}
-	var iframe=null;
-	var iframeId="iframe_"+targetId;
-	for( var n=0; n<cf.tabIframes.length; n++ ) {
-		var cur=cf.tabIframes[n];
-		if(cur.id==iframeId) {
-			iframe=cur;
-			break;
-		} else {
-			$(cur).hide();
-		}
-	}
-	if(iframe==null ) {
-		iframe=document.createElement('iframe');
-		iframe.id=id;
-		iframe.className='myFrame';
-		if(src) iframe.src=src;
-		cf.tabIframes.push(iframe);
-		ctt.append(iframe);
-	} else {
-		$(iframe).show();
-	}
-	return iframeId;
-}
 
 function setTreeData(tree, data) {
 	tree.add(data);
@@ -831,6 +765,4 @@ function makeButton(id, icon, text, sty, color) {
 function w2popupClose() {
 	w2popup.close();
 }
-
-
 
