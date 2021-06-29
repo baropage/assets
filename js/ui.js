@@ -124,17 +124,21 @@ function makeFormItems(item, el) {
 	}
 	return [];
 }
+
 function getFormInput( type, id, sty, items) {
 	var input='';
 	switch(type) {
+	case 'input':
+	case 'text':
+		input = '<input id="' + id + '" name="' + id + '" class="frm-input"' + sty + '>';
+		break;
 	case 'pass':
 	case 'password':
-		input = '<input id="' + id + '" name="' + id + '" class="frm-input" type="password" ' + sty + '>';
+		input = '<input id="' + id + '" name="' + id + '" class="frm-input" type="password"' + sty + '>';
 		break;
 	case 'check':
-	case 'checks':
 		if(!isArr(items)) items = [];
-		if(items.length ) items = makeFormItems(item);
+		if(items.length ) items = makeFormItems(items);
 		for (var i = 0; i < items.length; i++) {
 			input += '<label class="w2ui-box-label">'+
 					 '  <input id="' + id + i +'" name="' + id + '" class="frm-input" type="checkbox" ' +
@@ -145,14 +149,11 @@ function getFormInput( type, id, sty, items) {
 		break;
 
 	case 'checkbox':
-		input = '<label class="w2ui-box-label">'+
-				'   <input id="'+ id +'" name="'+ id +'" class="frm-input" type="checkbox" '+ sty + '>'+
-				'   <span>'+ items +'</span>'+
-				'</label>';
+		input = '<input id="'+ id +'" name="'+ id +'" class="frm-input" type="checkbox" '+ sty + '>';
 		break;
 	case 'radio':
 		if(!isArr(items)) items = [];
-		if(items.length ) items = makeFormItems(item);
+		if(items.length ) items = makeFormItems(items);
 		for (var i = 0; i < items.length; i++) {
 			input += '<label class="w2ui-box-label">'+
 					 '  <input id="' + id + i + '" name="' + id + '" class="frm-input" type = "radio" ' +
@@ -164,7 +165,7 @@ function getFormInput( type, id, sty, items) {
 	case 'select':
 		input = '<select id="' + id + '" name="' + id + '" class="frm-input" ' + sty + '>';
 		if(!isArr(items)) items = [];
-		if(items.length ) items = makeFormItems(item);
+		if(items.length ) items = makeFormItems(items);
 		for (var i = 0; i < items.length; i++) {
 			input += '<option value="'+ items[i].id + '">' + items[i].text + '</option>';
 		}
@@ -192,6 +193,7 @@ function getFormInput( type, id, sty, items) {
 	}
 	return input;
 }
+
 function makeFormData(data, formType) {
 	if(!isObj(data)) {
 		data=cf.formData;
@@ -202,41 +204,52 @@ function makeFormData(data, formType) {
 	if(formType=="w2") {
 		return makeW2Form(data);
 	}
-	var getFormRow=function(form) {
+	var getFormRow=function(form, depth) {
 		var s='';
 		if(!isArr(form) ) {
 			return;
 		}
 		var len=form.length;
 		if( len && isArr(form[0])) {
-
 			s+='<div class="form-row">';
 			for(var row of form) {
-				s+='<div class="cell-'+len+'">'+getFormRow(row)+'</div>'
+				if(depth==0) {
+					s+=getFormRow(row,depth+1);
+				} else {
+					s+='<div class="cell-'+len+'">'+getFormRow(row,depth+1)+'</div>';
+				}
 			}
-			s+='</div>'
+			s+='</div>';
 		} else {
-			var name=form[0], id=form[1], type=form[2];
-			var sty='', items=null;
-			if(isNum(form[3])) sty=' style="width:'+form[3]+'px"';
-			else if(isStr(form[3])) sty=' style="'+form[3]+'"';
-			else if(isObject(form[3])) item=form[3];
-			if(isObject(form[4])) item=form[4];
-			var span=len>4? '<span>'+form[4]+'</span>':'';
+			var name=form[0], id=form[1], type=form[2], f3=form[3], f4=form[4];
+			var sty='', items=null, span='';
+			if(isNum(f3)) {
+			    sty=' style="width:'+f3+'px"';
+			} else if(isStr(f3)) {
+			    if(type=="checkbox") items=f3;
+			    else sty=' style="'+f3+'"';
+			} else if(isObject(f3)) {
+			    items=f3;
+			}
+			if(isStr(f4)) span=' <span>'+f4+'</span>';
+			else if(isObject(f4)) items=f4;
+			if(items) console.log("xxx items xxx", items)
 			if(!type) type='input';
-			var input=getFormInput( type, id, sty);
+			var input=getFormInput( type, id, sty, items);
 			if(span) input+=span;
 			s+='<div class="form-field"><label>'+name+'</label>'+input+'</div>';
 		}
 		return s;
 	}
-	var id=data.id? data.id: 'frm';
+	var id=data.id? data.id: data.name? data.name: 'frm';
 	var s='<div id="'+id+'" class="tab-form-area">';
-	s+=getFormRow(data.form);
+	s+=getFormRow(data.form,0);
 	s+='</div>';
 	return s;
 
 }
+
+
 function makeW2Form(data) {
 
 }
@@ -309,12 +322,12 @@ function setLayoutHeight(id) {
 	if(!id ) id=cf.layoutResizeId;
 	cf.tick=Date.now();
 	mainLayoutHeight(id);
-	
+
 	if(isFunc(cf.windowResizeFunc) ) {
 		cf.windowResizeFunc();
 	}
 	if(isArr(cf.resizeFuncs) ) {
-		for(func of cf.resizeFuncs ) func(height);
+		for(func of cf.resizeFuncs ) func();
 	}
 }
 function mainLayoutHeight(id) {
