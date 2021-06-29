@@ -22,7 +22,29 @@ Array.prototype.remove = function(from, to) {
   return this.push.apply(this, rest);
 };
 
-
+function isFunc(a) {
+	return (!!a) && typeof a == 'function';
+}
+function isObj(a) {
+	return (!!a) && (a.constructor === Object);
+}
+function isArr(a) {
+	return (!!a) && (a.constructor === Array);
+}
+function isObject(a) {
+	return isObj(a) || isArr(a);
+}
+function isNum(a, strict) {
+	var strict = strict === true ? true : false;
+	if (strict) {
+		return !isNaN(a) && a instanceof Number ? true : false;
+	} else {
+		return !isNaN(a - parseFloat(a));
+	}
+}
+function isStr(a) {
+	return (typeof a=='string' && !isNum(a)) ? true: false;
+}
 
 function getPageValue(id) {
 	var el=getEl("w2-"+id);
@@ -40,7 +62,7 @@ function startPage() {
 		for( var module of cf.initModules ) {
 		    console.log("module call ", module);
 			if(typeof module.func=='function') {
-			    module.func();   
+			    module.func();
 			}
 		}
 	}
@@ -80,6 +102,143 @@ function tplFunc(name, func) {
     if(typeof func=="function") {
         Template7.registerHelper(name, func);
     }
+}
+
+function makeFormItems(item, el) {
+	if(isArr(item)) {
+		for (var m = 0; m < item.length; m++) {
+			if(typeof item[m] === 'string') {
+				item[m] = { id: item[m], text: item[m] };
+			} else if( isObj(item[m])) {
+				if(item[m].text != null && item[m].id == null) item[m].id = item[m].text;
+				if(item[m].text == null && item[m].id != null) item[m].text = item[m].id;
+			} else {
+				item[m] = { id: null, text: 'null' }
+			}
+		}
+		return item;
+	} else if(isObj(item) ) {
+		var tmp = [];
+		for (var m in item) tmp.push({ id: m, text: item[m] });
+		return tmp;
+	}
+	return [];
+}
+function getFormInput( type, id, sty, items) {
+	var input='';
+	switch(type) {
+	case 'pass':
+	case 'password':
+		input = '<input id="' + id + '" name="' + id + '" class="frm-input" type="password" ' + sty + '>';
+		break;
+	case 'check':
+	case 'checks':
+		if(!isArr(items)) items = [];
+		if(items.length ) items = makeFormItems(item);
+		for (var i = 0; i < items.length; i++) {
+			input += '<label class="w2ui-box-label">'+
+					 '  <input id="' + id + i +'" name="' + id + '" class="frm-input" type="checkbox" ' +
+								sty + ' data-value="'+ items[i].id +'" data-index="'+ i +'">' +
+						'<span>&#160;' + items[i].text + '</span>' +
+					 '</label><br>';
+		}
+		break;
+
+	case 'checkbox':
+		input = '<label class="w2ui-box-label">'+
+				'   <input id="'+ id +'" name="'+ id +'" class="frm-input" type="checkbox" '+ sty + '>'+
+				'   <span>'+ items +'</span>'+
+				'</label>';
+		break;
+	case 'radio':
+		if(!isArr(items)) items = [];
+		if(items.length ) items = makeFormItems(item);
+		for (var i = 0; i < items.length; i++) {
+			input += '<label class="w2ui-box-label">'+
+					 '  <input id="' + id + i + '" name="' + id + '" class="frm-input" type = "radio" ' +
+							field.html.attr + (i === 0 ? tabindex_str : '') + ' value="'+ items[i].id + '">' +
+						'<span>&#160;' + items[i].text + '</span>' +
+					 '</label><br>';
+		}
+		break;
+	case 'select':
+		input = '<select id="' + id + '" name="' + id + '" class="frm-input" ' + sty + '>';
+		if(!isArr(items)) items = [];
+		if(items.length ) items = makeFormItems(item);
+		for (var i = 0; i < items.length; i++) {
+			input += '<option value="'+ items[i].id + '">' + items[i].text + '</option>';
+		}
+		input += '</select>';
+		break;
+	case 'textarea':
+		input = '<textarea id="'+ id +'" name="'+ id +'" class="frm-input" '+ sty + '></textarea>';
+		break;
+	case 'toggle':
+		input = '<input id="'+ id +'" name="'+ id +'" type="checkbox" '+ sty + ' class="frm-input w2ui-toggle"><div><div></div></div>';
+		break;
+	case 'map':
+	case 'array':
+		input = '<span style="float: right">' +items+ '</span>' +
+				'<input id="'+ id +'" name="'+ id +'" type="hidden" '+ sty + '>'+
+				'<div class="w2ui-map-container"></div>';
+		break;
+	case 'div':
+		input = '<div id="'+ id +'" name="'+ id +'" '+ sty + ' class="frm-input">'+items+'</div>';
+		break;
+	case 'html':
+		input = items;
+		break;
+	default: break;
+	}
+	return input;
+}
+function makeFormData(data, formType) {
+	if(!isObj(data)) {
+		data=cf.formData;
+		if(!isObj(data)) return alert("폼 데이타가 정의되지 않았습니다");
+	}
+	if(!isArr(data.form)) return alert("폼 정보가 정의되지 않았습니다");
+	if(!formType) formType="normal";
+	if(formType=="w2") {
+		return makeW2Form(data);
+	}
+	var getFormRow=function(form) {
+		var s='';
+		if(!isArr(form) ) {
+			return;
+		}
+		var len=form.length;
+		if( len && isArr(form[0])) {
+
+			s+='<div class="form-row">';
+			for(var row of form) {
+				s+='<div class="cell-'+len+'">'+getFormRow(row)+'</div>'
+			}
+			s+='</div>'
+		} else {
+			var name=form[0], id=form[1], type=form[2];
+			var sty='', items=null;
+			if(isNum(form[3])) sty=' style="width:'+form[3]+'px"';
+			else if(isStr(form[3])) sty=' style="'+form[3]+'"';
+			else if(isObject(form[3])) item=form[3];
+			if(isObject(form[4])) item=form[4];
+			var span=len>4? '<span>'+form[4]+'</span>':'';
+			if(!type) type='input';
+			var input=getFormInput( type, id, sty);
+			if(span) input+=span;
+			s+='<div class="form-field"><label>'+name+'</label>'+input+'</div>';
+		}
+		return s;
+	}
+	var id=data.id? data.id: 'frm';
+	var s='<div id="'+id+'" class="tab-form-area">';
+	s+=getFormRow(data.form);
+	s+='</div>';
+	return s;
+
+}
+function makeW2Form(data) {
+
 }
 
 function loadScript(src, func) {
