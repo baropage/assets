@@ -31,9 +31,23 @@ function isObj(a) {
 function isArr(a) {
 	return (!!a) && (a.constructor === Array);
 }
-function isObject(a) {
-	return isObj(a) || isArr(a);
+
+function isEl(o){
+    return (
+        typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
+        o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
+    );
 }
+function isNode(o){
+    return (
+        typeof Node === "object" ? o instanceof Node : 
+        o && typeof o === "object" && typeof o.nodeType === "number" && typeof o.nodeName==="string"
+    );
+}
+function isObject(a) {
+	return isObj(a) || isArr(a) || isEl(a);
+}
+
 function isNum(a, strict) {
 	var strict = strict === true ? true : false;
 	if (strict) {
@@ -104,28 +118,8 @@ function tplFunc(name, func) {
     }
 }
 
-function makeFormItems(item, el) {
-	if(isArr(item)) {
-		for (var m = 0; m < item.length; m++) {
-			if(typeof item[m] === 'string') {
-				item[m] = { id: item[m], text: item[m] };
-			} else if( isObj(item[m])) {
-				if(item[m].text != null && item[m].id == null) item[m].id = item[m].text;
-				if(item[m].text == null && item[m].id != null) item[m].text = item[m].id;
-			} else {
-				item[m] = { id: null, text: 'null' }
-			}
-		}
-		return item;
-	} else if(isObj(item) ) {
-		var tmp = [];
-		for (var m in item) tmp.push({ id: m, text: item[m] });
-		return tmp;
-	}
-	return [];
-}
-
-function getFormInput( type, id, sty, items) {
+function getFormInput( type, id, sty, items, classType) {
+    if(classType) sty+=classType;
 	var input='';
 	switch(type) {
 	case 'input':
@@ -156,8 +150,7 @@ function getFormInput( type, id, sty, items) {
 		if(items.length ) items = makeFormItems(items);
 		for (var i = 0; i < items.length; i++) {
 			input += '<label class="w2ui-box-label">'+
-					 '  <input id="' + id + i + '" name="' + id + '" class="frm-input" type = "radio" ' +
-							field.html.attr + (i === 0 ? tabindex_str : '') + ' value="'+ items[i].id + '">' +
+					 '  <input id="' + id + i + '" name="' + id + '" class="frm-input" type = "radio" value="'+ items[i].id + '">' +
 						'<span>&#160;' + items[i].text + '</span>' +
 					 '</label><br>';
 		}
@@ -177,81 +170,163 @@ function getFormInput( type, id, sty, items) {
 	case 'toggle':
 		input = '<input id="'+ id +'" name="'+ id +'" type="checkbox" '+ sty + ' class="frm-input w2ui-toggle"><div><div></div></div>';
 		break;
-	case 'map':
-	case 'array':
-		input = '<span style="float: right">' +items+ '</span>' +
-				'<input id="'+ id +'" name="'+ id +'" type="hidden" '+ sty + '>'+
-				'<div class="w2ui-map-container"></div>';
-		break;
-	case 'div':
-		input = '<div id="'+ id +'" name="'+ id +'" '+ sty + ' class="frm-input">'+items+'</div>';
-		break;
-	case 'html':
-		input = items;
-		break;
 	default: break;
 	}
 	return input;
 }
 
-function makeFormData(data, formType) {
-	if(!isObj(data)) {
+function makeFormItems(item, el) {
+	if(isArr(item)) {
+		for (var m = 0; m < item.length; m++) {
+			if(isStr(item[m]) || isNum(item[m]) ) {
+				item[m] = { id: item[m], text: item[m] };
+			} else if( isObj(item[m]) ) {
+			    if(item[m].code_id) {
+			        item[m].id=item[m].code_id;
+			        item[m].text=item[m].code_name;
+			    } else {
+    				if(item[m].text != null && item[m].id == null) item[m].id = item[m].text;
+    				if(item[m].text == null && item[m].id != null) item[m].text = item[m].id;
+			    }
+			} else {
+				item[m] = { id: null, text: 'null' }
+			}
+		}
+		return item;
+	} else if(isObj(item) ) {
+		var tmp = [];
+		for (var m in item) tmp.push({ id: m, text: item[m] });
+		return tmp;
+	}
+	return [];
+}
+
+
+function makeFormData(data, formType, el, appendMode) {
+    // data = {id:xxx, form:[]} or [[...]]
+    var form=null, formId="";
+    if(!data) {
+        data=cf.formData;
+    }
+    if(isArr(data)) {
+        form=data;
+    } else if(!isObj(data)) {
 		data=cf.formData;
-		if(!isObj(data)) return alert("폼 데이타가 정의되지 않았습니다");
+		if(isArr(data)) {
+    	    from=data;
+    	}
 	}
-	if(!isArr(data.form)) return alert("폼 정보가 정의되지 않았습니다");
-	if(!formType) formType="normal";
-	if(formType=="w2") {
-		return makeW2Form(data);
+	if(isObj(data)) {
+	    form=data.form;
+	    if(!formType) formType=data.type;
+	    formId=data.id? data.id: data.name? data.name: '';
+	} 
+	if(!isArr(form)) return alert("폼 정보가 정의되지 않았습니다");
+	if(!formType) {
+	    formType="form-area";
 	}
-	var getFormRow=function(form, depth) {
+	var getFormRow=function(form, depth, map) {
 		var s='';
 		if(!isArr(form) ) {
 			return;
 		}
 		var len=form.length;
 		if( len && isArr(form[0])) {
-			s+='<div class="form-row">';
+			if(depth) s+='<div class="form-row">';
 			for(var row of form) {
 				if(depth==0) {
-					s+=getFormRow(row,depth+1);
+					s+=getFormRow(row,depth+1,map);
 				} else {
-					s+='<div class="cell-'+len+'">'+getFormRow(row,depth+1)+'</div>';
+					s+='<div class="cell-'+len+'">'+getFormRow(row,depth+1,map)+'</div>';
 				}
 			}
-			s+='</div>';
+			if(depth) s+='</div>';
 		} else {
-			var name=form[0], id=form[1], type=form[2], f3=form[3], f4=form[4];
-			var sty='', items=null, span='';
-			if(isNum(f3)) {
-			    sty=' style="width:'+f3+'px"';
-			} else if(isStr(f3)) {
-			    if(type=="checkbox") items=f3;
-			    else sty=' style="'+f3+'"';
-			} else if(isObject(f3)) {
-			    items=f3;
+			var name=form[0], id=form[1], type=form[2];
+			var input='', span='';
+			if(id=='html'||id=='div') {
+			    if(id=='html') {
+			        input = '<div data-type="frm-html">'+type+'</div>';
+			    } else {
+			        input = '<div id="'+ type +'">'+form[3]+'</div>';
+			    }
+			} else {
+			    var f3=form[3], f4=form[4], items=null;
+    			var sty='', classType='';
+    			if(isNum(f3)) sty=' style="width:'+f3+'px"';
+    			else if(isStr(f3)) sty=' style="'+f3+'"';
+    			else if(isObject(f3)) items=f3;
+    			if(isStr(f4)) span=' <span>'+f4+'</span>';
+    			else if(isObject(f4)) items=f4;
+    			if(isStr(form[5]) && span=='') span=' <span>'+form[5]+'</span>';
+    			if(!type) type='input';
+    			if(type.charAt(0)=='@') {
+    			    classType=' data-type="'+type.substr(1)+'"';
+    			    if(isObj(items)) {
+    			        if(id) map[id]=items;
+    			    } else {
+    			        classType+=' data-kind="w2field"';
+    			    }
+    			    type='input';
+    			}
+			    input=getFormInput( type, id, sty, items, classType);
 			}
-			if(isStr(f4)) span=' <span>'+f4+'</span>';
-			else if(isObject(f4)) items=f4;
-			if(items) console.log("xxx items xxx", items)
-			if(!type) type='input';
-			var input=getFormInput( type, id, sty, items);
 			if(span) input+=span;
 			s+='<div class="form-field"><label>'+name+'</label>'+input+'</div>';
 		}
 		return s;
-	}
-	var id=data.id? data.id: data.name? data.name: 'frm';
-	var s='<div id="'+id+'" class="tab-form-area">';
-	s+=getFormRow(data.form,0);
+	};
+	var map={};
+	var s='<div';
+	if(formId) s+=' id="'+formId+'"';
+	s+=' class="'+formType+'">';
+	s+=getFormRow(form,0,map);
 	s+='</div>';
+	if(isEl(el)) {
+	    if(appendMode) {
+	        $(el).append(s);
+	    } else {
+	        $(el).html(s);
+	    }
+	    $.each(map, function(id,opt) {
+	        var el=getEl(id);
+	        if(el) {
+	            var type=el.getAttribute("data-type");
+	            console.log("w2 field ", id, type, opt);
+	            opt.items=makeFormItems(opt.items);
+	            makeW2Form(el, type, opt);
+	        }
+	    });
+	    var target=formId? '#'+formId: '.'+formType;
+	    $(target).find('[data-kind]').each(function() {
+	        makeW2Form(this, $(this).data("type")); 
+	    });
+	}
 	return s;
+}    
 
-}
-
-
-function makeW2Form(data) {
-
+function makeW2Form(el, type, opt) {
+    if(!isEl(el)) return console.log("## ui makeW2Form error (el, type, opt) ##", el, type, opt);
+    if(type=='combo'||type=='list'||type=='enum'||type=='file') {
+        if(!isObj(opt)) opt={};
+    }
+    switch(type) {
+    case 'date': $(el).w2field('date', opt?opt:{ silent: false}); break;
+    case 'date-week': $(el).w2field('date', opt?opt:{ silent: false, format: 'yyyy-m-d', blockWeekDays: [0,6]}); break;
+    case 'date-time': $(el).w2field('datetime', opt?opt:{}); break;
+    case 'time': $(el).w2field('time', opt?opt:{ start: '8:15am', end: '4:30pm' }); break;
+    case 'time-hour': $(el).w2field('time', opt?opt:{ noMinutes: true }); break;
+    case 'color': $(el).w2field(opt?opt:'color'); break;
+    case 'int': $(el).w2field(opt?opt:'int'); break;
+    case 'float': $(el).w2field(opt?opt:'float'); break;
+    case 'percent': $(el).w2field('percent', opt?opt:{ precision: 0, min: 0, max: 100 }); break;
+    case 'alphanum': $(el).w2field(opt?opt:'alphanumeric'); break;
+    case 'combo': $(el).w2field('combo', opt); break;
+    case 'list': $(el).w2field('list', opt); break;
+    case 'enum': $(el).w2field('enum', opt); break;
+    case 'file': $(el).w2field('file', opt); break;
+    default: break;
+    }
 }
 
 function loadScript(src, func) {
@@ -404,33 +479,6 @@ function rightClickCheck(event) {
 	var e=event.originalEvent ? event.originalEvent: event;
 	if(!e) return false;
 	return (e.which && e.which==3) || (e.button&&e.button==2);
-}
-
-function createEditor(ace, id, options) {
-	var el = document.getElementById(id);
-	if( !el ) {
-		console.log("create editor 오류 아이디가 설정되지 않았습니다 (아이디: "+id+")");
-		return;
-	}
-	options = options || {
-		enableBasicAutocompletion: true,
-	};
-	var editor = ace.edit(id);
-	if(!options.theme ) options.theme="ace/theme/twilight";
-	if(!options.mode ) options.mode="ace/mode/javascript";
-	editor.setFontSize(14);
-	// enable autocompletion and snippets
-	editor.setOptions(options);
-	if( options.onchange) {
-		editor.getSession().on('change', options.onchange);
-	}
-	var editorId=id=='editor'? id: 'editor_'+id;
-	// el.editor=editor;
-	cf.ace=ace;
-	cf[editorId]=editor;
-	console.log("xxxxxxxx", editor, ace, id);
-
-	return editor;
 }
 
 function copyText(text) {
@@ -772,8 +820,40 @@ function createW2Button(id, icon, text, click, sty, color) {
 	return btnEl;
 }
 
-function makeButton(id, icon, text, sty, color) {
-	return createW2Button(id, icon, text, null, sty, color);
+function makeButtons(text, click, icon, color, sty) {
+	var btnEl=document.createElement("button");
+	var iconEl=null;
+	var textEl=document.createElement("b");
+	var obj=null;
+	if(isObj(icon)) {
+	    obj=icon;
+	    icon=obj.icon;
+	    color=obj.color;
+	    sty=obj.style;
+	}
+	textEl.innerHTML=text;
+	if(icon ) {
+		iconEl=document.createElement("span");
+		iconEl.style="margin-right:8px";
+		iconEl.className="w2ui-icon "+icon;
+	}
+	var cls="w2ui-btn";
+	if(color) cls+=" w2ui-btn-"+color;
+	btnEl.className=cls;
+	if(sty) btnEl.style=sty;
+	if(iconEl) btnEl.appendChild(iconEl);
+	btnEl.appendChild(textEl);
+	if(typeof click=="function" ) {
+	    btnEl.onclick=click;
+	}
+	if(obj) $(btnEl).data("options", obj);
+	return btnEl;
+}
+function addButtonList(el,list) {
+    console.log("add button list (el,list)", isObj(el),isArr(list) );
+    for(var cur of list) {
+        el.appendChild(makeButtons(cur[0],cur[1], cur[2]) );
+    }
 }
 function w2popupClose() {
 	w2popup.close();
