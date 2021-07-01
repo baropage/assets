@@ -1,0 +1,63 @@
+/*메인메뉴 a태그 href 없애고 포인터 커서*/
+.mainmenu>a {cursor: pointer;}
+
+.subtab {
+    background-color: #f9f9f9;
+    float: right;
+    width: 90px;
+    transition: all 0.4s !important;
+    text-align: center;
+    display: none;
+    cursor: pointer;    
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: calc(100vh - 3.75rem - 1px); 
+}
+
+
+.subtab_active {display: block;}
+
+
+
+.submenu {
+    padding: 10px 0px;
+}
+/*
+.submenu:hover {
+    background-color: #e2eefd;
+    color: #223189;
+    font-weight: bold;
+}
+*/
+/*서브메뉴 a태그용일때 css처리*/
+.submenu:hover {
+    background-color: #e2eefd;
+}
+.submenu:hover>a {
+    color: #223189;
+    font-weight: bold;
+}
+.submenu>a {
+    text-decoration: none;
+    color: #5a6169;
+}
+
+.submenu_active, .submenu_active:hover, .submenu_active a {
+    background-color: #e2eefd;
+    font-weight: bold;
+    color: #223189;
+}
+.submenu p {
+    margin-top: 10px;
+    margin-bottom: 0px;
+}
+
+.nav-item, .main-sidebar__nav-title {
+    background-color: #fff;
+}
+
+.main-footer {position: fixed; bottom: 0; width: 100%;}
+.bnt-box {margin-left: 55%;}
+
+
+

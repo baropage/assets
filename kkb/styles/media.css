@@ -1,0 +1,21 @@
+@media (max-width: 767px) {
+    .main-sidebar .nav-wrapper {height: calc(100vh - 10.75rem - 1px); }
+    .subtab {height: calc(100vh - 11.05rem - 1px);}
+    /*모바일에서 직접입력칸 아래생성*/
+    .selbox_group {width: 100% !important; margin-bottom: .25rem;}
+    .selboxDirect {width: 100%; float: none;}
+    .btn_box {margin-top: 0px;}
+}
+
+
+@media all and (max-width: 560px) {
+    .fixed {width: 100%;}
+    .tab-top  {flex-direction: column;}
+    .calendar {min-width: 100%; margin-top: 5px;}
+    .blank-mar {margin-top: 95px;}
+    .bnt-box {margin-left: 0%; margin-top: 5px;}
+    .nav-link {padding: 0.2rem 0.65rem ;}
+    .formadd_mar {margin-top: 5px;}
+    .formadd_mar mb-3 {margin-top: 10px;}
+    .w_33 {width: 100%;}
+}

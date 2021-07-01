@@ -306,7 +306,12 @@ function makeFormData(data, formType, el, appendMode) {
 }    
 
 function makeW2Form(el, type, opt) {
-    if(!isEl(el)) return console.log("## ui makeW2Form error (el, type, opt) ##", el, type, opt);
+    if(!isEl(el)) return console.log(">> ui makeW2Form error (el, type, opt)", el, type, opt);
+    if(type.startsWith("flat-")) {
+        if(!isObj(opt)) opt={};
+        flatpickr(el, opt);
+        return;
+    }
     if(type=='combo'||type=='list'||type=='enum'||type=='file') {
         if(!isObj(opt)) opt={};
     }
@@ -858,4 +863,44 @@ function addButtonList(el,list) {
 function w2popupClose() {
 	w2popup.close();
 }
+
+/* kokobot ui */
+
+function makeMainMenu(data) {
+    var s=getPageValue("_logo");
+    s+='<div class="nav-wrapper" style="position: absolute; float: left; width: calc(100% - 90px); border-right: 1px solid #e1e5eb;">';
+    for(var root of data) {
+        s+=`<h6 class="main-sidebar__nav-title">${root.text}</h6>`;
+        console.log("xxx", root);
+        for(var menu of root.nodes) {
+            s+=`<ul class="nav_input nav nav--no-borders flex-column">
+                <li class="mainmenu nav-item">
+                    <a class="nav-link active">
+                        <i class="material-icons">${menu.icon}</i>
+                        <span>${menu.text}</span>
+                    </a>
+                </li>
+            </ul>`;
+        }
+    }
+    s+='</div><div>';
+    var idx=1;
+    for(var root of data) {
+        for(var menu of root.nodes) {
+            s+=`<div id="sub_input${idx}" class="subtab_input subtab subtab_active">`;
+            for(var sub of menu.nodes) {
+                s+=`<div class="submenu submenu_active">
+                    <a href="#">
+                        <img id="" class="d-inline-block align-top mr-1" style="max-width: 25px;" src="images/shards-dashboards-logo.svg" alt="Shards Dashboard">
+                        <p>${sub.text}</p>
+                    </a>
+                </div>`;
+            }
+        }
+    }
+    s+='</div>';
+    return s;
+}
+
+
 
