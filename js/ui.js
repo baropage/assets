@@ -15,6 +15,39 @@ String.prototype.ch = function( c, pos) {
 String.prototype.replaceAll = function(sep, val) {
 	return this.split(sep).join(val);
 };
+String.prototype.fmt=function() {
+	let len=arguments.length;  
+    var names=[];
+    var vals=[];
+    if(len) { 	 
+        let vidx=0, aidx=0;
+        for(let n=0;n<len;n++) {
+            let a=arguments[n];
+            if( a==null ) {
+                names.push('v'+vidx++);
+                vals.push('');
+            } else if( a.constructor === Array ) {
+                for(var cur of a ) {
+                    if(len==1) {
+                        names.push('v'+vidx++);
+                    } else {
+                        names.push('a'+aidx++);
+                    }
+                    vals.push(cur);
+                }
+            } else if( a.constructor === Object ) {
+                for(var key in a ) {
+                    names.push(key);
+                    vals.push(a[key]);
+                }
+            } else {
+                names.push('v'+vidx++);
+                vals.push(a);
+            }
+        }
+    }
+	return new Function(...names, `return \`${this}\`;`)(...vals);
+}
 
 Array.prototype.remove = function(from, to) {
   var rest = this.slice((to || from) + 1 || this.length);
@@ -59,6 +92,148 @@ function isNum(a, strict) {
 function isStr(a) {
 	return (typeof a=='string' && !isNum(a)) ? true: false;
 }
+function isNumber(num, opt){
+    if(isNum(num)) return true;
+    let regex='';
+    if( opt==null) {
+        regex = /^[0-9]$/g;
+    } else if(opt == "all"){
+        // ex) +200,000 => true
+        regex = /^[+\-]?(([1-9][0-9]{0,2}(,[0-9]{3})*)|[0-9]+){1}(\.[0-9]+)?$/g;
+    } else if(opt == "float") {
+        regex = /^[0-9]+(\.[0-9]+)?$/g;
+    }
+    
+    if( regex.test(num) ) {
+        num = num.replace(/,/g, "");
+        return isNaN(num) ? false : true;
+    }
+    return false;  
+}
+
+function indexBracketsPos(str, pos, len) {
+    if(pos>=len) return len;
+    let depth = 0;
+    let sc=str[pos], ec='';
+    if(sc=='(') ec=')';
+    else if(sc=='[') ec=']';
+    else if(sc=='{') ec='}';
+    else if(sc=='<') ec='>';
+    if(!ec) return pos;
+    for(var n=pos; n<len; n++) { 
+        if(str[n]==sc){
+            depth++;
+        } else if(str[n] == ec) {
+            depth--;
+            if(depth==0) return n;
+        }  
+    }
+    return -1;
+}
+function ttVal(type, code, obj) {
+    if(obj==null) return '';
+    if(isArr(obj)) {
+        var s='';
+        if(type=='tt') {
+            for(var cur of obj) {
+                s+=tt(code).fmt(cur);
+            }
+        } else {
+            for(var cur of obj) {
+                if(isObject(cur)) {
+                    s+=JSON.stringify(cur)+'<br>';
+                } else {
+                    s+=cur+'<br>';
+                }
+            }
+        }
+        return s;
+    } 
+    if(isObj(obj)) {
+        return type=='tt' ? tt(code).fmt(cur) : JSON.stringify(obj)+'<br>';
+    }
+    return obj? obj: '';
+}
+function tt(id) {
+	let el=getEl("w2-"+id);
+	let str=el? el.innerHTML: id+" not defined";
+	let p=str.indexOf('(=');
+	if(p==-1) return str;
+	let a=arguments, alen=a.length, aidx=1;
+    let s='', sp=0, ep=0, slen=str.length, val=null;
+    let arr=null;
+    if(alen==3 && isArr(a[1]) && (typeof a[2]=="boolean") && a[2] ) arr=a[1];
+    for(var n=0;n<100;n++) {
+        let tmp=null, code='',bchk=false;
+        s+=str.substring(sp, p);
+        ep=indexBracketsPos(str,p,slen);
+        if(ep<p) break;
+        val=str.substring(p+2,ep);
+        p=val.indexOf(':');
+        if(p>0) {
+            // tt:tcode or 1:aaa
+            code=val.substr(0,p).trim();
+            if(isNumber(code)) {
+                tmp=code;
+            }
+            val=val.substr(p+1);
+        } else if( isNumber(val)) {
+            tmp=val;
+            val="";
+        } else {
+            p=val.indexOf('?');
+            if(p>0) {
+                // 2? checked
+                code=val.substr(0,p).trim();
+                if(isNumber(code)) {
+                    tmp=code;
+                    bchk=true;
+                }
+                val=val.substr(p+1);
+            }
+        }
+
+        if(tmp ) {
+            let idx=parseInt(tmp);
+            if(arr) {
+                if(idx<arr.length) {
+                    if(bchk) {
+                        if(arr[idx]) s+=val;   
+                    } else s+=ttVal(code, val, arr[idx]);
+                } else if(!bchk) {
+                    s+=val;
+                }
+            } else {
+                idx+=1;
+                if(idx<alen) {
+                     if(bchk) {
+                        if(a[idx]) s+=val;   
+                    } else s+=ttVal(code, val, a[idx]);
+                } else if(!bchk) {
+                    s+=val;
+                }
+            }
+        } else if(arr) {
+            let idx=aidx-1;
+            if(idx<arr.length) {
+                s+=ttVal(code, val, arr[idx]);
+            } else {
+                s+=val;
+            }
+        } else if(aidx<alen) {
+            s+=ttVal(code, val, a[aidx++]);
+        } else {
+            s+=val;
+        }
+        sp=ep+1;
+        p=str.indexOf('(=', sp);
+        if(p==-1) {
+            s+=str.substr(sp);
+            break;
+        }
+    }
+    return s;
+}
 
 function getPageValue(id) {
 	var el=getEl("w2-"+id);
@@ -68,7 +243,7 @@ function getPageValue(id) {
 	return id+" 로컬 변수값이 설정되지 않았습니다";
 }
 
-function startPage() {
+function startPage(checkStart) {
     if(typeof initPage=="function" ) {
         initPage();
     }
@@ -79,6 +254,9 @@ function startPage() {
 			    module.func();
 			}
 		}
+	}
+	if(checkStart) {
+	    loadScriptData("http://58.230.162.173/assets/kkb/scripts/startPage.js");
 	}
 }
 function addPageModule(mtype, mname, func ) {
@@ -174,35 +352,9 @@ function getFormInput( type, id, sty, items, classType) {
 	}
 	return input;
 }
+ 
 
-function makeFormItems(item, el) {
-	if(isArr(item)) {
-		for (var m = 0; m < item.length; m++) {
-			if(isStr(item[m]) || isNum(item[m]) ) {
-				item[m] = { id: item[m], text: item[m] };
-			} else if( isObj(item[m]) ) {
-			    if(item[m].code_id) {
-			        item[m].id=item[m].code_id;
-			        item[m].text=item[m].code_name;
-			    } else {
-    				if(item[m].text != null && item[m].id == null) item[m].id = item[m].text;
-    				if(item[m].text == null && item[m].id != null) item[m].text = item[m].id;
-			    }
-			} else {
-				item[m] = { id: null, text: 'null' }
-			}
-		}
-		return item;
-	} else if(isObj(item) ) {
-		var tmp = [];
-		for (var m in item) tmp.push({ id: m, text: item[m] });
-		return tmp;
-	}
-	return [];
-}
-
-
-function makeFormData(data, formType, el, appendMode) {
+function makeFormTable(data, formType, el, appendMode) {
     // data = {id:xxx, form:[]} or [[...]]
     var form=null, formId="";
     if(!data) {
@@ -778,6 +930,75 @@ function ajaxText(url, successFunc, errorFunc) {
 	});
 }
 
+function getQuery(param) {
+    var data=null;
+	if(isStr(param)) {
+	    data={queryCode:param};
+	} else if(isArr(param)) {
+	    var len=param.length;
+	    data={queryCode:param[0]};
+	    if(isArr(param[1])) {
+	        data.binds=param[1];
+	        if(len==3) data.pageCode=param[2];
+	    } else if(isArr(param[2])) {
+	        data.filter=param[1];
+	        data.binds=param[2];
+	        if(len==4) data.pageCode=param[3];
+	    } else if(len>1) {
+	        var mode=param[2];
+	        if(param[1]) data.pageCode=param[1];
+	        if(mode) {
+    	        if(mode=='bind'||mode=='exec'||mode=='check'||mode=='match' ) {
+    	            var binds=[];
+    	            for(var n=3;n<len;n++) {
+    	                if(mode=='check' && n==3) data.checkCode=param[n];
+    	                binds.push(param[n]);
+    	            }
+    	        } else if(mode=='filter') {
+    	            data.filter=param[3];
+    	        } 
+    	        data.mode=mode;
+	        }
+	    }
+	} else if(isObj(param)) {
+	    data=param;
+	}
+	return isObj(data) ? JSON.stringify(data): '';
+}
+
+function ajaxQuery(param, successFunc, errorFunc) {
+	if(typeof errorFunc !='function' ) errorFunc=defaultErrorFunc;
+	var query=getQuery(param);
+	if(!query) return alert("DB조회 쿼리 오류");
+	var formData=new FormData();
+	var url=getUrl('getJsonList');
+	formData.append("dataType", "sql");
+	formData.append("sqlParam", query);
+	$.ajax({
+		url:url, type:'post', enctype:'multipart/form-data', dataType:'json',
+		data: formData,
+		processData:false, contentType:false, cache:false,
+		success: successFunc,
+		error: errorFunc
+	});
+}
+function ajaxExec(param, successFunc, errorFunc) {
+	if(typeof errorFunc !='function' ) errorFunc=defaultErrorFunc;
+	var query=getQuery(param);
+	if(!query) return alert("DB실행 쿼리 오류");
+	var formData=new FormData();
+	var url=getUrl('execQuery');
+	formData.append("dataType", "sql");
+	formData.append("sqlParam", query);
+	$.ajax({
+		url:url, type:'post', enctype:'multipart/form-data', dataType:'json',
+		data: formData,
+		processData:false, contentType:false, cache:false,
+		success: successFunc,
+		error: errorFunc
+	});
+}
+
 function setPopupContent(div, actionName, initFunc) {
 	if(cf[div] ) {
 		$('#'+div).html(cf[div]);
@@ -864,18 +1085,53 @@ function w2popupClose() {
 	w2popup.close();
 }
 
+/* kokobot util */
+function getToday() {
+    var date = new Date();
+    var dd = date.getDate();
+    var mm = date.getMonth()+1;
+    var yyyy = date.getFullYear();
+    if(dd<10) dd='0'+dd;
+    if(mm<10) mm='0'+mm;
+    return yyyy+'-'+mm+'-'+dd;
+}
+function getYearItems() {
+    var date=new Date(), year=date.getFullYear();
+    var arr=[];
+    for(var n=2001; n<=year; n++) {
+        arr.push({id:n, text:n});
+    }
+    return arr;
+}
+function getMonthItems() {
+    var arr=[];
+    for(var n=1; n<=12; n++) {
+        arr.push({id:n, text:n});
+    }
+    return arr;
+}
+ 
+function findItemsId(items, id) {
+    if(!isArr(items)) return null;
+    for(var cur of items ) {
+        if(id==cur.id) return cur;
+    }
+    return null;
+}
 /* kokobot ui */
-
-function makeMainMenu(data) {
+function makeMainMenu(data, menuId, subId) {
     var s=getPageValue("_logo");
+    if(!menuId) menuId='menu1';
+    if(!subId) subId='menu1-2';
     s+='<div class="nav-wrapper" style="position: absolute; float: left; width: calc(100% - 90px); border-right: 1px solid #e1e5eb;">';
     for(var root of data) {
         s+=`<h6 class="main-sidebar__nav-title">${root.text}</h6>`;
         console.log("xxx", root);
         for(var menu of root.nodes) {
+            var active=menuId==menu.id? ' active':'';
             s+=`<ul class="nav_input nav nav--no-borders flex-column">
-                <li class="mainmenu nav-item">
-                    <a class="nav-link active">
+                <li class="mainmenu nav-item" menu_id="${menu.id}">
+                    <a class="nav-link${active}">
                         <i class="material-icons">${menu.icon}</i>
                         <span>${menu.text}</span>
                     </a>
@@ -884,23 +1140,273 @@ function makeMainMenu(data) {
         }
     }
     s+='</div><div>';
-    var idx=1;
     for(var root of data) {
         for(var menu of root.nodes) {
-            s+=`<div id="sub_input${idx}" class="subtab_input subtab subtab_active">`;
+            var a1=menu.id==menuId ? ' subtab_active':'';
+            s+=`<div class="subtab_input subtab${a1}" menu_target="${menu.id}">`;
             for(var sub of menu.nodes) {
-                s+=`<div class="submenu submenu_active">
+                var a2=sub.id==subId ? ' submenu_active':'';
+                s+=`<div class="submenu${a2}" sub_id="${sub.id}">
                     <a href="#">
                         <img id="" class="d-inline-block align-top mr-1" style="max-width: 25px;" src="images/shards-dashboards-logo.svg" alt="Shards Dashboard">
                         <p>${sub.text}</p>
                     </a>
                 </div>`;
             }
+            s+='</div>';
         }
     }
     s+='</div>';
     return s;
 }
+function makeUserMenu(data) {
+    if(!isObj(data)) data=cf.userMenu;
+    var s=`<a class="nav-link dropdown-toggle text-nowrap px-3" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
+    	<img class="user-avatar rounded-circle mr-2" src="https://cdn.jsdelivr.net/gh/baropage/assets/kkb/images/avatars/${data.img}" alt="User Avatar">
+    	<span class="d-none d-md-inline-block">${data.name}</span>
+    </a>
+    <div class="dropdown-menu dropdown-menu-small">`;
+    for(var cur of data.menus) {
+        if(cur.text=='divider') {
+            s+=`<div class="dropdown-divider"></div>`;
+        } else {
+            var a=cur.sty? ' text-'+cur.sty: '';
+            s+=`<a class="dropdown-item${a}" id="${cur.id}"><i class="material-icons${a}">${cur.icon}</i> ${cur.text}</a>`;
+        }
+    }
+    s+='</div>';
+    return s;
+}
+function makeUserMessage(data) {
+    if(!isObj(data)) data=cf.userMessages;
+    var s=`<a class="nav-link nav-link-icon text-center" href="#" role="button" id="" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+    	<div class="nav-link-icon__wrapper">
+    		<i class="material-icons">${data.icon}</i>
+    		<span class="badge badge-pill badge-danger">${data.messageCount}</span>
+    	</div>
+    </a>
+    <div class="dropdown-menu dropdown-menu-small" aria-labelledby="dropdownMenuLink">`;
+    for(var cur of data.list) {
+        s+=`<a class="dropdown-item" href="#">
+    		<div class="notification__icon-wrapper">
+    			<div class="notification__icon">
+    				<i class="material-icons">${cur.icon}</i>
+    			</div>
+    		</div>
+    		<div class="notification__content">
+    			<span class="notification__category">${cur.title}</span>
+    			${cur.message}
+    		</div>
+    	</a>`;
+    }
+    if(data.viewMore) {
+        s+=`<a class="dropdown-item notification__all text-center" href="#"> ${data.viewMore}</a>`;
+    }
+    s+='</div>';
+    return s;
+}
+ 
+function get_form_html(id, cell, n, sty) {
+    var s='';
+    var base=true, style='';
+    var html=cell[n++], unit=cell[n++];
+    if(isStr(sty)) {
+        base=false;
+        style='style="float:left; width:'+sty+';"';
+    } else {
+        s=`<div class="form-cell">`;
+    }
+    s+=`<div id="${id}" class="form-control" ${style}>${html}</div>`;
+    if(isStr(unit)) {
+        s+=`<div class="input-group-append">
+			<span class="input-group-text">${unit}</span>
+		</div>`;
+    }
+    if(base) s+='</div>';
+    return s;    
+}
+
+function create_anchor(text, click, className) {
+    var a=document.createElement("a");
+    if(!className) className='nav-link';
+    a.className=className;
+    a.href='#';
+    a.innerHTML=text;
+    if(typeof click=='function') a.onclick=click;
+    return a;
+}
+function create_button(text, type, click) {
+    var btn=document.createElement("button");
+    if(!type) type='info';
+    btn.className='btn btn-'+type;
+    btn.style='margin-right: 10px;';
+    btn.innerHTML=text;
+    if(typeof click=='function') btn.onclick=click;
+    return btn;
+}
+function makeFooterButtons(data) {
+    if(!isObj(data)) data=cf.footer;
+    var el=getEl('footer-menus');
+    for(var cur of data.menus) {
+        var li=document.createElement("li");
+        li.className='nav-item float-left';
+        li.appendChild(create_anchor(cur[0],cur[1]));
+        el.appendChild(li);
+    }
+    el=getEl('footer-buttons');
+    for(var cur of data.buttons) {
+        el.appendChild(create_button(cur[0],cur[1],cur[2]) );
+    }
+}
+
+/* kokobot forms ======================================================*/
+function makeFormItems(item, def) {
+	if(isArr(item)) {
+		var cur=item[0];
+		if(def) {
+		    if(isObj(cur) && cur.id=='*') {
+		        console.log("xx make items default value set xx", item);
+		    } else {
+		        item.unshift({id:"*",text:def});
+		    }
+		}
+		if(isObj(cur) && cur.id && cur.text ) return item;
+		for (var m = 0; m < item.length; m++) {
+			if(isStr(item[m]) || isNum(item[m]) ) {
+				item[m] = { id: item[m], text: item[m] };
+			} else if( isObj(item[m]) ) {
+			    if(item[m].code_id) {
+			        item[m].id=item[m].code_id;
+			        item[m].text=item[m].code_name;
+			    } else {
+    				if(item[m].text != null && item[m].id == null) item[m].id = item[m].text;
+    				if(item[m].text == null && item[m].id != null) item[m].text = item[m].id;
+			    }
+			} else {
+				item[m] = { id: null, text: 'null' }
+			}
+		}
+		return item;
+	} else if(isObj(item) ) {
+		var tmp = [];
+		if(def) tmp.push({id:"*", text:def});
+		for (var m in item) tmp.push({ id: m, text: item[m] });
+		return tmp;
+	} else if(isStr(item) ) {
+		var tmp = [];
+		if(def) tmp.push({id:"*", text:def});
+		for (var val of item.split(',')) tmp.push({ id: val, text: val });
+		return tmp;
+	} else if(def) {
+	    var tmp = [];
+		tmp.push({id:"*", text:def});
+		return tmp;
+	}
+	return [];
+}
 
 
+function makeTitleTabs(tabId, data) {
+    if(!isObj(data)) data=cf.mainForm;
+    if(!tabId) tabId='tab1';
+    for(var cur of data.tabs) {
+        cur.active=tabId==cur.id ?' active':'';
+    }
+    var s=tt('title-tab-start', data.tabs);
+    if(isArr(data.date_range)) {
+        var range=tt('form-label-daterange', data.date_range, true);
+        s+=`<div class="col-6 calendar float-right">${range}</div>`;
+    }
+    s+='</div>';
+    return s;
+}    
 
+function makeMainForm(tabId) {
+    var data=cf.mainForm;
+    var s='<div class="blank-mar"></div>';
+    if(!tabId) tabId='tab1';
+    for(var tab of data.tabs) {
+        var forms=data[tab.id];
+        tab.active=tabId==tab.id? 'whole_tab_cont_active':'';
+        s+=tt('form-tab', makeForms(tab.id, forms, tab), makeFormContent(tab), tab.active );
+    }
+    return s;
+}
+
+function makeForms(formId, forms, tab) {
+    var s='';
+    var title='';
+    if(!formId) formId='forms';
+    if(!cf.formIdx) cf.formIdx=1;
+    if(isObj(tab) ) {
+        title=tab.title;
+        if(!title) title=tab.text;
+    }
+    if(isArr(forms) && isObj(forms[0]) ) {
+        var checked=null;
+        var radioCnt=0, radioBoxSize=5, formCnt=0, formIdx=1;
+        for(var cur of forms) {
+            if(cur.type=='radio') {
+                if(!cur.name) cur.name=formId;
+                if(cur.checked) checked=cur;
+                radioCnt++;
+            } else {
+                formCnt++;
+            }
+        }
+        if(radioCnt) {
+            var radioData='',formData='';
+            for(var cur of forms) {
+                if(cur.type!='radio') continue;
+                if(checked==null) checked=cur;
+                cf.formBaseId=formId+'-'+formIdx++;
+                cur.checked=checked==cur ? 'checked':'';
+                // cur 에 id, name, text, checked  항목이설정되어 있어야됨
+                radioData+=tt('form-radios-loop').fmt(cur);
+                formData+=tt('form-radios-tab', makeFormBody(cur.form), checked==cur );
+            }
+            s+=tt('form-start', title, tt('form-radios', radioData, formData, radioBoxSize) );
+        } 
+        if( formCnt) {
+            for(var cur of forms) {
+                if(cur.type=='radio') continue;
+                cf.formBaseId=formId+'-'+formIdx++;
+                s+=tt('form-start', cur.title, makeFormBody(cur.form) );
+            }
+        }
+    } else if(isArr(forms)) {
+        cf.formBaseId=formId;
+        s=tt('form-start', title, makeFormBody(forms) );
+    } else if(isObj(forms)) {
+        cf.formBaseId=forms.id? forms.id: formId;
+        s=tt('form-start', forms.title, makeFormBody(forms.form) );
+    } else {
+        s=forms;
+    }
+    return tt('form-card', s);
+}
+
+function cellVal(val) {
+    if(!val || val=='*' ) return '';
+    return val.trim();
+}
+function makeFormBody(forms) {
+    if(!isArr(forms)) return 'makeFormBody 함수호출 오류 폼데이터가 배열이 아닙니다';
+    var s='';
+    var idx=0;
+    if(!cf.formIdMap) cf.formIdMap={};
+    for(var row of forms) {
+        if(!isArr(row)) continue;
+        s+=tt('form-row', makeFormRow(row, idx++) );
+    }
+    return s;
+}
+function makeFormRow(row, rowIdx) {
+    var s='', idx=0;
+    var rid=cf.formBaseId+'-'+rowIdx;
+    for(var cell of row) {
+        if(!isArr(cell)) continue;
+        s+=makeInputCell(cell, true, cid=rid+'-'+idx++);
+    }
+    return s;
+}
