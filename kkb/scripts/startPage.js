@@ -1,4 +1,21 @@
 (function(){
+    
+    
+    
+    //신규 추가항목(?)_로컬 scripts.js 추가사항
+    //체크박스 전체체크
+    $(".all_check").click(function(){
+        if($(".all_check").prop("checked")){
+            $(this).parent().siblings().children("input").prop("checked",true);
+        }else{
+            $(this).parent().siblings().children("input").prop("checked",false);
+        }
+    });
+    
+    
+    
+    
+    
 //서브탭 동작 시작
     //서브탭 퇴장
     $(".mainmenu").click(function(){
@@ -49,7 +66,6 @@
         $('.main-sidebar').toggleClass('open');
     }); // Apply dynamic scroll to sidebar nav wrapper
     
-    
     function handleSidebarHeightCheck() {
         var $navWrapper = $('.nav-wrapper');
         var height = $navWrapper.height();
@@ -80,15 +96,15 @@
 //셀렉트 직접입력 시작
     //한줄에 두칸
     $(document).on("change",".selbox", function(){
+        let inputSel=$(this).parent().parent().find(".selboxDirect");
         if($(this).val()=="direct"){
             //직접입력선택시 한줄에 .selbox와 .selboxDirect 넣기
-            $(this).parent(".selbox_group").css("display","inline-block");
-            $(this).parent(".selbox_group").css("float","left");
-            $(this).parent().parent().find(".selboxDirect").show();
+            $(this).parent(".selbox_group").css({display:"inline-block", float:"left",width:"50%"});
+            inputSel.show();
+            inputSel.find('input').focus();
         }else{
-            $(this).parent().parent().find(".selboxDirect").hide();
-            $(this).parent(".selbox_group").css("display","block");
-            $(this).parent(".selbox_group").css("float","none");
+            $(this).parent(".selbox_group").css({display:"block", float:"none",width:"100%"} );
+            inputSel.hide();
         }
     });
     //한줄에 한칸씩
@@ -112,49 +128,24 @@
             $("#animal_car_registered").show();
         }
     });
+    // 폼 모듈 등록
+    formModuleCheck();
     
-    
-//+-버튼 동작
-    //+버튼 클릭시 입력행 추가, 모바일 대응으로 eq(0)~eq(n) 각각 입력
-
-    
-    //-버튼 클릭시 마지막 행 제거
-    $(".btn_remove").click(function(){
-        //daily1_enter
-        var cnt=$(this).parent().siblings().children(".visit_group").length;
-        if(cnt>2){
-            $(".visit_box").eq(0).children(".visit_group:last").remove();
-            $(".visit_box").eq(1).children(".visit_group:last").remove();
-        }
-        
-        //daily3_receive
-        var cnt=$(this).parent().siblings().children(".dongmove_group").length;
-        if(cnt>4){
-            $(".dongmove_box").eq(0).children(".dongmove_group:last").remove();
-            $(".dongmove_box").eq(1).children(".dongmove_group:last").remove();
-            $(".dongmove_box").eq(2).children(".dongmove_group:last").remove();
-            $(".dongmove_box").eq(3).children(".dongmove_group:last").remove();
-        }
-        
-        var cnt=$(this).parent().siblings().children(".die_group").length;
-        if(cnt>6){
-            $(".die_box").eq(0).children(".die_group:last").remove();
-            $(".die_box").eq(1).children(".die_group:last").remove();
-            $(".die_box").eq(2).children(".die_group:last").remove();
-            $(".die_box").eq(3).children(".die_group:last").remove();
-            $(".die_box").eq(4).children(".die_group:last").remove();
-            $(".die_box").eq(5).children(".die_group:last").remove();
-        }
-        
-        //daily4_control_use
-        var cnt=$(this).parent().siblings().children(".medicine_group").length;
-        if(cnt>4){
-            $(".medicine_box").eq(0).children(".medicine_group:last").remove();
-            $(".medicine_box").eq(1).children(".medicine_group:last").remove();
-            $(".medicine_box").eq(2).children(".medicine_group:last").remove();
-            $(".medicine_box").eq(3).children(".medicine_group:last").remove();
-        }
-        
+    // 윈도우 크기 변경시 처리
+    $(window).resize(function() { 
+        let wid=$('#mainForm').width();
+        $('#mainTitle').width(wid);
+        $('#mainFooter').width(wid);
     });
-
+    // 레코드추가 삭제 버튼 처리
+    $('.btn-plus-minus').children().each(function(e) {
+        clickButtonPlusMinus($(this));
+    });
+    // input append 버튼 클릭처리
+    $('.input-group-append').on('click', function(e) {
+        let input=$(this).parent().children().first();
+        input.focus();
+    });
+    
+    console.log("start page ok!!! cf=>", cf );
 })();

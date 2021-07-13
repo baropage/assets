@@ -3094,6 +3094,7 @@ w2utils.event = {
             var menu_html    =  '<table cellspacing="0" cellpadding="0" class="'+ (subMenu ? ' sub-menu' : '') +'"><tbody>';
             var img = null, icon = null;
             if (items == null) items = options.items;
+console.log("xx items xx", items)            
             if (!Array.isArray(items)) items = []
             for (var f = 0; f < items.length; f++) {
                 var mitem = items[f];
@@ -3164,7 +3165,8 @@ w2utils.event = {
                         count++;
                     } else {
                         // horizontal line
-                        var divText = txt.replace(/^-+/g, '')
+                        var divText = ''; // txt.replace(/^-+/g, '')
+                        console.log("xxx txt xxx", txt);
                         menu_html += '<tr><td colspan="3" class="menu-divider '+ (divText != '' ? 'divider-text' : '') +'">'+
                                      '   <div class="line">'+ divText +'</div>'+
                                      '   <div class="text">'+ divText +'</div>'+

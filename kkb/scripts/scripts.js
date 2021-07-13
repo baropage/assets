@@ -45,6 +45,11 @@ $(document).ready(function(){
         $(this).parents(".radio_group").find(".radio_tab").eq(num).addClass("radio_active");
     });
     
+    //작동안됨
+//daily1_enter 차량진입여부 미진입시 소독항목 차량 체크 해제
+    $("#car_entry1").click(function(){$("#disinfection1, #disinfection2, #disinfection3").prop("checked",true);});
+    $("#car_entry2").click(function(){$("#disinfection2, #disinfection3").prop("checked",false);});
+    
 //셀렉트 직접입력 시작
     //한줄에 두칸
     $(document).on("change",".selbox", function(){

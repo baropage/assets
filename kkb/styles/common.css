@@ -35,7 +35,7 @@ h7::before {
 .text_center {text-align: center;}
 
 .font-label {color: #223189; font-weight: bold; margin-bottom: -50px; margin-left: 0px; text-align: left;}
-.font-label::before {content: '· ';}
+.font-label::before {content:'· ';}
 
 /*마진0*/
 .mar-0 {margin: 0;}
@@ -47,11 +47,8 @@ h7::before {
 /*WIDTH*/
 .min_width100 {min-width: 100px;}
 
-
-
 .form-group>label {color: #223189; font-weight: bold; margin-bottom: -50px;}
-.form-group>label::before {content: '· ';}
-
+.form-group>label::before {content:'· ';}
 
 /*카드*/
 .card-top {
@@ -75,18 +72,21 @@ h7::before {
 .whole_tab_cont, .radio_tab {display: none;}
 .whole_tab_cont_active, .radio_active {display: flex;}
 
-/*셀렉트*/
-.selboxDirect {margin-top: 0;}
+/*.selbox,*/
+.selbox2 {width: 100%; margin-bottom: .25rem; height: 35px !important;}
+
 
 /*셀렉트행 추가 기능*/
 /*직접입력시 한줄에 .selbox와 .selboxDirect 넣기*/
 .selboxDirect {
+    margin-top: 0;
+    overflow: auto;
     display: none;
     float: right; /*float: right 대신 display: inline-block도 가능*/
 }
 .selboxDirectTxt {width: 100% !important;}
 
-.width_50 {width: 50%;}
+.width_50 {width: 50% !important;}
 .max_w_400 {max-width: 400px;}
 .w_33 {width: 33%;}
 
@@ -114,12 +114,34 @@ h7::before {
 }
 /*라디오배경끝*/
 
-/*visit관련*/
-.visit_group, .dongmove_group {
-    overflow: auto;
-}
+/*+-추가 관련*/
+.overflow_group {overflow: auto;}
 
 /*사료 조정 테이블*/
 .feed_adjust_td {display: inline-block; width: 50%;}
+
+/*스크롤 스타일 변경*/
+::-webkit-scrollbar{width: 3px; background: #007bff;}
+::-webkit-scrollbar-track {background-color:#fff;}
+::-webkit-scrollbar-thumb {border-radius: 3px; background-color: #007bff;}
+
+
+.input-group {min-height: 35.5px;}
+
+.input-right-margin50 {width:calc(100% - 50px) }
+
+.bg-check {
+    margin-top: 5px;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: -1px;
+    background-color: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    font-weight: 300;
+    border-radius: 0.3rem;
+}
+#footer-buttons {
+    position: absolute;
+    right: 10px;
+}
 
 

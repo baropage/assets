@@ -1,3 +1,5 @@
+const CHARS = new Set("_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ");
+
 var cf={tag: "config" };
 String.prototype.trim = function() { return this.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '') };
 String.prototype.ch = function( c, pos) {
@@ -55,6 +57,10 @@ Array.prototype.remove = function(from, to) {
   return this.push.apply(this, rest);
 };
 
+function isset(a) {
+    return typeof a=='undefined' ? false : true;
+}
+
 function isFunc(a) {
 	return (!!a) && typeof a == 'function';
 }
@@ -111,7 +117,10 @@ function isNumber(num, opt){
     return false;  
 }
 
-function indexBracketsPos(str, pos, len) {
+function isAlphanum(char) { return CHARS.has(char); }
+
+
+function bracketsPos(str, pos, len) {
     if(pos>=len) return len;
     let depth = 0;
     let sc=str[pos], ec='';
@@ -120,7 +129,7 @@ function indexBracketsPos(str, pos, len) {
     else if(sc=='{') ec='}';
     else if(sc=='<') ec='>';
     if(!ec) return pos;
-    for(var n=pos; n<len; n++) { 
+    for(let n=pos; n<len; n++) { 
         if(str[n]==sc){
             depth++;
         } else if(str[n] == ec) {
@@ -130,100 +139,297 @@ function indexBracketsPos(str, pos, len) {
     }
     return -1;
 }
-function ttVal(type, code, obj) {
-    if(obj==null) return '';
-    if(isArr(obj)) {
-        var s='';
-        if(type=='tt') {
-            for(var cur of obj) {
-                s+=tt(code).fmt(cur);
-            }
+
+
+function varEndPos(str, pos, len) {
+    if(pos>=len) return len;
+    let first=true;
+    for(let n=pos; n<len; n++) {
+        if(isAlphanum(str[n])) {
+            continue;
         } else {
-            for(var cur of obj) {
-                if(isObject(cur)) {
-                    s+=JSON.stringify(cur)+'<br>';
+            return n;
+        }
+    }
+    return len;
+}
+function blankPos(str, pos, len) {
+    if(pos>=len) return len;
+    for(let n=pos; n<len; n++) {
+        let c=str[n];
+        if(c==' '||c=='\t'||c=='\n'||c=='\r') continue;
+        else return n;
+    }
+    return -1;
+}
+function isTemplateCode(id) {
+    if(!isStr(id) ) return false;
+    let slen=id.length, first=true;
+    for(let n=0;n<slen;n++) {
+        let ch=id[n];
+        if(first ) {
+            if(ch==' '||ch=='\n'||ch=='\t'||ch=='\r') continue;
+            first=false;
+        }
+        if( CHARS.has(ch) || ch=='-' ) continue;
+        else return false;
+    }
+    return true;
+}
+function evalFuncPos(src) {
+    if(!isStr(src) ) return 0;
+    let slen=src.length, first=true;
+    for(let n=0;n<slen;n++) {
+        let ch=src[n];
+        if(first ) {
+            if(ch==' '||ch=='\n'||ch=='\t'||ch=='\r') continue;
+            first=false;
+        }
+        if( ch=='(') return n;
+        if( CHARS.has(ch) || ch=='.' ) continue;
+        else return 0;
+    }
+    return n;
+}
+
+function ttEval(arr, params, src) {
+    // eval:1,2,3 ? test
+    let p=evalFuncPos(src);
+    if(p==0) {
+        return eval('(function() {'+src+'}())');
+    } else {
+        let name=src.slice(0,p).trim();
+        let func=eval(name);
+        if(typeof func=='function') {
+            let v0=null, v1=null, v2=null, v3=null, v4=null, v5=null, v6=null, v7=null, v8=null,v9=null;
+            let index=0;
+            name+='(';
+            for(let v of arr) {
+                let val=0;
+                if(isNumber(v)) {
+                    let idx=parseInt(v);
+                    val=params[idx];
+                } else if(isStr(v)) {
+                    if( (v[0]=='+' || v=='-') && isNumber(v.substr(1)) ) {
+                        val=v=='-'? v :v.substr(1);
+                    } else {
+                        val=v;
+                    }
                 } else {
-                    s+=cur+'<br>';
+                    val=v;
                 }
+                if(index) name+=',';
+                switch(index) {
+                case 0: v0=val; name+='v0'; break;
+                case 1: v1=val; name+='v1'; break;
+                case 2: v2=val; name+='v2'; break;
+                case 3: v3=val; name+='v3'; break;
+                case 4: v4=val; name+='v4'; break;
+                case 5: v5=val; name+='v5'; break;
+                case 6: v6=val; name+='v6'; break;
+                case 7: v7=val; name+='v7'; break;
+                case 8: v8=val; name+='v8'; break;
+                case 9: v9=val; name+='v9'; break;
+                }
+                index++;
             }
+            name+=')';
+            console.log("xx tt eval xxx name=="+name)    
+            return eval(name);
+        }
+    }
+    return '';
+}
+
+
+function ttVal(type, val, obj, param, sep) {
+    if(val==null) {
+        return type+' 처리기능 구현중...';
+    }
+    if(sep) {
+        let s='';
+        if(sep==':' || sep=='?' ) {
+            if(type=='tt') {
+                let code=val.trim();
+                if(isArr(obj)) {
+                    for(var cur of obj) {
+                        s+=tt(code).fmt(cur);
+                    }
+                } else if(isObj(obj)) {
+                    s+=tt(code).fmt(obj);
+                } else  {
+                    s+=tt(code, obj);
+                }
+                return s;
+            }
+            // num: 1,2 ? aaa or array: 1? [aaa ${id} = ${text} ]
+        	let a=null;
+            let slen=val.length;
+        	let p=0;
+        	if(sep==':') {
+        	    p=val.indexOf('?');
+        	    if(p==-1) p=slen;
+        	}
+        	if(p>0) {
+        	    a=val.slice(0,p).split(",").map(item => item.trim());
+        	} else {
+        	    a=[];
+        	}
+        	let sp=blankPos(val,p+1,slen), mp=-1, ep=0;
+        	let ch='';
+        	if(sp<slen) {
+        		ch=val[sp];
+        		if(ch=='[') {
+        			ep=bracketsPos(val, sp, slen);
+        			mp=ep==-1? ep: blankPos(val,ep+1,slen);
+        			sp+=1;
+        			if(ep==-1) ep=slen;
+        		} else {
+        		    ep=slen;
+        		}
+        	}
+        	if(type=='eval') {
+        	    return ttEval(a, param, val.slice(sp,ep) );
+        	}
+        	if(type=='number') {
+        	    if(isNumber(a[0])) {
+        	        let idx=parseInt(a[0]), num=0;
+        	        if(isNumber(param[idx])) {
+        	            num=parseInt(param[idx]);
+        	            s=val.slice(sp,ep);
+        	            return s.indexOf('${') ? s.fmt(num): s;
+        	        } else if(isNumber(a[1])) {
+        	            idx=parseInt(a[1]);
+        	            return param[idx];
+        	        }
+        	        return '';
+        	    }   
+        	} else if(type=='template') {
+        	    let arr=[];
+        	    for(let v of a) {
+        	        if(isNumber(v)) {
+        	            arr.push(param[parseInt(v)]);
+        	        } else if(isStr(v)) {
+        	            if( (v[0]=='+' || v=='-') && isNumber(v.substr(1)) ) {
+        	                arr.push(v=='-'? v :v.substr(1));
+        	            } else {
+        	                arr.push(v);
+        	            }
+        	        } else {
+        	            arr.push(v)
+        	        }
+        	    }
+        	    s=tt(val.slice(sp,ep), arr, '<array>');
+        	} else if(type=='array') {
+        	    // array: 1 ? loop : error
+        	    if(isNumber(a[0])) {
+        	        let idx=parseInt(a[0]);
+        	        let arr=isArr(param[idx]) ? param[idx]: null;
+        	        if(arr && arr.length ) {
+        	            let line=val.slice(sp,ep);
+        	            for(var cur of arr) {
+        	                if(isObj(cur)) s+=line.fmt(cur);
+        	                else if(isArr(cur)) s+=tt(line, cur, '<array>');
+        	                else s+=tt(line,cur);
+        	            }
+        	        } else if(mp>0 && val[mp]==':' ) {
+        	            sp=blankPos(val,mp+1,slen);
+        	            ch=val[sp];
+        		        if(ch=='[') {
+        		            ep=bracketsPos(val, sp, slen);
+        		            if(ep==-1) ep=slen;
+            	            s=val.slice(sp+1,ep);
+        	            } else {
+        	                s=val.slice(mp+1,slen);
+        	            }
+                    } else if(a.length>1) {
+                        if(isNumber(a[1])) {
+                            idx=parseInt(a[1]);
+            	            s=param[idx];
+                        } else {
+                            s=a[1]
+                        }
+                    }
+                    return s;
+				}
+				return '매개변수 배열이 아니거나 내용이 없습니다';
+
+        	} if(type=='object') {
+        	    
+        	}
+            s=type+' 는 정의되지 않은 변환 타입입니다';
+        } else {
+            s=`${sep} 는 잘못된 구분 기호 입니다 (타입=${type}) `;
         }
         return s;
-    } 
-    if(isObj(obj)) {
-        return type=='tt' ? tt(code).fmt(cur) : JSON.stringify(obj)+'<br>';
     }
-    return obj? obj: '';
+    if(type=='=') return obj;
+    if(type=='?') {
+        return (val && obj ) ? (val.indexOf('${') ? val.fmt(obj): val) :'';
+    } else if( type==':') {
+        return obj? obj: val;
+    }
+    return type+' 는 정의되지 구분기호 입니다';
 }
-function tt(id) {
-	let el=getEl("w2-"+id);
-	let str=el? el.innerHTML: id+" not defined";
+
+function tt(id, ...param) {
+    let str='';
+    if(isTemplateCode(id) ) {
+    	let el=getEl("w2-"+id);
+    	str=el? el.innerHTML: id+" not defined";
+    } else {
+        str=id;
+    }
 	let p=str.indexOf('(=');
 	if(p==-1) return str;
-	let a=arguments, alen=a.length, aidx=1;
+	let pidx=0;
     let s='', sp=0, ep=0, slen=str.length, val=null;
-    let arr=null;
-    if(alen==3 && isArr(a[1]) && (typeof a[2]=="boolean") && a[2] ) arr=a[1];
+    if(param.length==3 && isArr(param[1]) && param[2]=='<array>' ) {
+        let arr=param[1];
+        param=arr;
+    }
     for(var n=0;n<100;n++) {
-        let tmp=null, code='',bchk=false;
-        s+=str.substring(sp, p);
-        ep=indexBracketsPos(str,p,slen);
+        let val='',code='',ch='', idx=-1;
+        s+=str.slice(sp, p);
+        ep=bracketsPos(str,p,slen);
         if(ep<p) break;
-        val=str.substring(p+2,ep);
-        p=val.indexOf(':');
-        if(p>0) {
-            // tt:tcode or 1:aaa
-            code=val.substr(0,p).trim();
+        p=blankPos(str, p+2, slen);
+        sp=varEndPos(str,p,ep);
+        if(sp==-1) break;
+        code=str.slice(p,sp);
+        p=blankPos(str,sp,ep);
+        if(p>0 && p<ep) {
+            ch=str[p];
             if(isNumber(code)) {
-                tmp=code;
+                idx=parseInt(code);
             }
-            val=val.substr(p+1);
-        } else if( isNumber(val)) {
-            tmp=val;
-            val="";
-        } else {
-            p=val.indexOf('?');
-            if(p>0) {
-                // 2? checked
-                code=val.substr(0,p).trim();
-                if(isNumber(code)) {
-                    tmp=code;
-                    bchk=true;
-                }
-                val=val.substr(p+1);
-            }
-        }
+            val=str.slice(p+1, ep);
+        } else if( isNumber(code)) {
+            ch='=';
+            idx=parseInt(code);
+        } 
 
-        if(tmp ) {
-            let idx=parseInt(tmp);
-            if(arr) {
-                if(idx<arr.length) {
-                    if(bchk) {
-                        if(arr[idx]) s+=val;   
-                    } else s+=ttVal(code, val, arr[idx]);
-                } else if(!bchk) {
-                    s+=val;
-                }
-            } else {
-                idx+=1;
-                if(idx<alen) {
-                     if(bchk) {
-                        if(a[idx]) s+=val;   
-                    } else s+=ttVal(code, val, a[idx]);
-                } else if(!bchk) {
-                    s+=val;
+        if(idx!=-1 ) {
+            // 1 or 1:aaa or 1?name=${v0}
+            if(isArr(param)) {
+                if(idx<param.length) {
+                    s+=ttVal(ch, val, param[idx], param);
+                } else {
+                    s+=ttVal(ch, val, '', param);
                 }
             }
-        } else if(arr) {
-            let idx=aidx-1;
-            if(idx<arr.length) {
-                s+=ttVal(code, val, arr[idx]);
-            } else {
-                s+=val;
+        } else if(ch) {
+            // tt:template
+            if(isArr(param)) {
+                idx=pidx++;
+                if(idx<param.length) {
+                    s+=ttVal(code, val, param[idx], param, ch);
+                } else {
+                    s+=ttVal(code, val, null, param, ch);
+                }
             }
-        } else if(aidx<alen) {
-            s+=ttVal(code, val, a[aidx++]);
         } else {
-            s+=val;
+            s+=ttVal(code);
         }
         sp=ep+1;
         p=str.indexOf('(=', sp);
@@ -1086,6 +1292,40 @@ function w2popupClose() {
 }
 
 /* kokobot util */
+function findCur(arr, cur) {
+    if(!isArr(arr)) return -1;
+    let n=0;
+    for(let c of arr) {
+        if(c==cur) {
+            return n;
+        }
+        n++;
+    }
+    return -1;
+}
+function findNextIndex(arr, cur, chk) {
+    if(!isArr(arr)) return -1;
+    let n=0;
+    for(let c of arr) {
+        if(c==cur) {
+            return n<arr.length-1 ? n+1: -1;
+        }
+        n++;
+    }
+    return -1;
+}
+function findPrevIndex(arr, cur) {
+    if(!isArr(arr)) return -1;
+    let n=0;
+    for(let c of arr) {
+        if(c==cur) {
+            return n>0 ? n-1: -1;
+        }
+        n++;
+    }
+    return -1;
+}
+
 function getToday() {
     var date = new Date();
     var dd = date.getDate();
@@ -1118,7 +1358,39 @@ function findItemsId(items, id) {
     }
     return null;
 }
+
+/* kokobot event */
+function clickButtonPlusMinus(btn) {
+    let id=btn.attr('id');
+    let row=btn.closest('.form-row');
+    let p=id.lastIndexOf('-');
+    let ty=id.substr(p+1);
+    if(ty=='plus') {
+        btn.on('click', function(e) {
+            row.find('.form-group').each(function() {
+                let item=$(this).find('.overflow_group').first(0);
+                $(this).append(item.clone());
+            })
+        });
+    } else {
+        btn.on('click', function(e) {
+            row.find('.form-group').each(function() {
+                let group=$(this).find('.overflow_group');
+                if(group.length>1) {
+                    group.last().remove();
+                }
+            });
+        });
+    }
+}
+
 /* kokobot ui */
+function getNode(obj) {
+    if(isArr(obj) ) {
+        obj=obj[0];    
+    } 
+    return isObj(obj)? obj: {};
+}
 function makeMainMenu(data, menuId, subId) {
     var s=getPageValue("_logo");
     if(!menuId) menuId='menu1';
@@ -1160,50 +1432,15 @@ function makeMainMenu(data, menuId, subId) {
     return s;
 }
 function makeUserMenu(data) {
+    // 0:user icon, 1: user name, 2:menus
     if(!isObj(data)) data=cf.userMenu;
-    var s=`<a class="nav-link dropdown-toggle text-nowrap px-3" data-toggle="dropdown" href="#" role="button" aria-haspopup="true" aria-expanded="false">
-    	<img class="user-avatar rounded-circle mr-2" src="https://cdn.jsdelivr.net/gh/baropage/assets/kkb/images/avatars/${data.img}" alt="User Avatar">
-    	<span class="d-none d-md-inline-block">${data.name}</span>
-    </a>
-    <div class="dropdown-menu dropdown-menu-small">`;
-    for(var cur of data.menus) {
-        if(cur.text=='divider') {
-            s+=`<div class="dropdown-divider"></div>`;
-        } else {
-            var a=cur.sty? ' text-'+cur.sty: '';
-            s+=`<a class="dropdown-item${a}" id="${cur.id}"><i class="material-icons${a}">${cur.icon}</i> ${cur.text}</a>`;
-        }
-    }
-    s+='</div>';
-    return s;
+    let user=getNode(data.userInfo);
+    return tt('userMenu', user.user_icon, user.user_nickname, data.menus);
 }
 function makeUserMessage(data) {
+    // 0:icon, 1:message count, 2:list[icon,title,message], 3: viewMore
     if(!isObj(data)) data=cf.userMessages;
-    var s=`<a class="nav-link nav-link-icon text-center" href="#" role="button" id="" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-    	<div class="nav-link-icon__wrapper">
-    		<i class="material-icons">${data.icon}</i>
-    		<span class="badge badge-pill badge-danger">${data.messageCount}</span>
-    	</div>
-    </a>
-    <div class="dropdown-menu dropdown-menu-small" aria-labelledby="dropdownMenuLink">`;
-    for(var cur of data.list) {
-        s+=`<a class="dropdown-item" href="#">
-    		<div class="notification__icon-wrapper">
-    			<div class="notification__icon">
-    				<i class="material-icons">${cur.icon}</i>
-    			</div>
-    		</div>
-    		<div class="notification__content">
-    			<span class="notification__category">${cur.title}</span>
-    			${cur.message}
-    		</div>
-    	</a>`;
-    }
-    if(data.viewMore) {
-        s+=`<a class="dropdown-item notification__all text-center" href="#"> ${data.viewMore}</a>`;
-    }
-    s+='</div>';
-    return s;
+    return isArr(data.list)? tt('userMessage',data.icon, data.list.length, data.list, data.viewMore ): '';
 }
  
 function get_form_html(id, cell, n, sty) {
@@ -1259,7 +1496,58 @@ function makeFooterButtons(data) {
     }
 }
 
-/* kokobot forms ======================================================*/
+/* kokobot forms */
+function findIdNode(id) {
+    for(let cur of cf.formIdAll) {
+        if(cur.id==id) return cur;
+    }
+    return null;
+}
+function findNameNode(name) {
+    for(let cur of cf.formIdAll) {
+        if(cur.name==name) return cur;
+    }
+    return null;
+}
+function findLabelName(id) {
+    let cur=findIdNode(id);
+    return cur? cur.name: '';
+}
+function findLabelArray(label) {
+    var arr=[];
+    for(let cur of cf.formIdAll) {
+        if(cur.name==label) arr.push(cur);
+    }
+    return arr;
+}
+
+function makeFormObject(obj) {
+    if(!isObj(obj)) return '템플릿 객체 Eval 함수 실행오류 (호출객체 미정의)';
+    if(obj.type=='table') {
+        let s='<table class="table mb-0"><tbody><tr>';
+        for(let v of obj.fields ) {
+            s+=`<td>${v}</td>`;
+        }
+        s+='</tr>';
+        let row=0;
+        for(let cur of obj.data ) {
+            let cell=0;
+            s+=`<tr><td>${cur.text}</td>`;
+            for(let a of cur.form) {
+                s+='<td>'+makeInputCell(a,false,'test'+row+'-'+cell)+'</td>';
+                cell++;
+            }
+            s+='</tr>';
+            row++;
+        }
+        s+='</tbody></table>';
+        return s;
+    } else {
+        return obj.type+' 은 알수 없는 템플릿 객체 타입입니다';
+    }
+    
+}
+
 function makeFormItems(item, def) {
 	if(isArr(item)) {
 		var cur=item[0];
@@ -1305,21 +1593,23 @@ function makeFormItems(item, def) {
 	return [];
 }
 
-
 function makeTitleTabs(tabId, data) {
     if(!isObj(data)) data=cf.mainForm;
     if(!tabId) tabId='tab1';
     for(var cur of data.tabs) {
         cur.active=tabId==cur.id ?' active':'';
     }
+    if(data.title) {
+        $('#mainTitle').find("h6").html(data.title);
+    }
     var s=tt('title-tab-start', data.tabs);
     if(isArr(data.date_range)) {
-        var range=tt('form-label-daterange', data.date_range, true);
+        var range=tt('form-daterange', data.date_range, '<array>');
         s+=`<div class="col-6 calendar float-right">${range}</div>`;
     }
     s+='</div>';
     return s;
-}    
+}
 
 function makeMainForm(tabId) {
     var data=cf.mainForm;
@@ -1387,26 +1677,476 @@ function makeForms(formId, forms, tab) {
 }
 
 function cellVal(val) {
-    if(!val || val=='*' ) return '';
-    return val.trim();
+    if(val==null || val=='*' ) return '';
+    return isStr(val)? val.trim(): val+'';
 }
+function formIdAdd(conf) {
+    let id=conf.cellId, name=conf.label;
+    let map=cf.formIdMap;
+    if(!isObj(map) || !name) return console.log(`${name} 폼요소 추가오류(id:${id})`);
+    if(!isArr(cf.formIdAll)) cf.formIdAll=[];
+    cf.formIdAll.push({id:id, name:name, type:conf.type });
+    map[id]=name;
+}
+function formModuleCheck() {
+    let map=cf.formModuleMap;
+    if(!isObj(map) ) return;
+    for(let id in map) {
+        let opt=map[id], el=getEl(id);
+        if(!isObj(opt)) continue;
+        console.log(">> formModuleCheck (id, opt)", el, id, opt);
+        if(!isEl(el)) {
+            continue;
+        }
+        type=opt.objectType;
+        switch(type) {
+        /*
+        case 'date': $(el).w2field('date', opt?opt:{ silent: false}); break;
+        case 'time-hour': $(el).w2field('time', opt?opt:{ noMinutes: true }); break;
+        case 'color': $(el).w2field(opt?opt:'color'); break;
+        case 'int': $(el).w2field(opt?opt:'int'); break;
+        case 'float': $(el).w2field(opt?opt:'float'); break;
+        case 'percent': $(el).w2field('percent', opt?opt:{ precision: 0, min: 0, max: 100 }); break;
+        case 'alphanum': $(el).w2field(opt?opt:'alphanumeric'); break;
+        */
+        case 'datetime': $(el).w2field('datetime', opt?opt:{}); break;
+        case 'week': $(el).w2field('date', opt?opt:{ silent: false, format: 'yyyy-m-d', blockWeekDays: [0,6]}); break;
+        case 'time': $(el).w2field('time', opt?opt:{ start: '8:15am', end: '4:30pm' }); break;
+        case 'flat': flatpickr(el, opt); break;
+        case 'combo': $(el).w2field('combo', opt); break;
+        case 'list': $(el).w2field('list', opt); break;
+        case 'enum': $(el).w2field('enum', opt); break;
+        case 'file': $(el).w2field('file', opt); break;
+        default: break;
+        } 
+        if(type=='list' || type=='combo' ) {
+            $(el).keypress(function(event) {
+                console.log(">> key=",event.key);
+                if(event.key=='Enter') {
+                    let id=$(this).attr("id");
+                    let combo=$(this).w2field();
+                    let val=combo.get(), idx=combo.options.index;
+                    if(idx==-1 ) {
+                        let len=combo.options.items.length;
+                        let label=findLabelName(id);
+                        if(label && confirm(label+' 에 새로운 '+val+' 항목을 추가하시겠습니까?')) {
+                            combo.options.items.push({id:'new'+len, text:val} );
+                        }
+                    }
+               }
+            });
+        }
+    }
+}
+
 function makeFormBody(forms) {
-    if(!isArr(forms)) return 'makeFormBody 함수호출 오류 폼데이터가 배열이 아닙니다';
+    if(!isArr(forms)) {
+        console.log(">> makeFormBody 폼데이터가 배열이 아닙니다 forms: ", forms);
+        return '';
+    }
     var s='';
-    var idx=0;
-    if(!cf.formIdMap) cf.formIdMap={};
+    var idx=0, base=cf.formBaseId;
+    if(!cf[base]) {
+        cf[base]={};
+        cf.formIdMap=cf[base];
+    }
+    if(!cf.formBases) {
+        cf.formBases=[];
+    }
+    var findBase=function(base) {
+        for(var name of cf.formBases ) {
+            if(name==base) return true;
+        }
+        return false;
+    };
+    if(!findBase(base) ) cf.formBases.push(base);
     for(var row of forms) {
         if(!isArr(row)) continue;
-        s+=tt('form-row', makeFormRow(row, idx++) );
+        cf.formRowCheck=true;
+        var rowData=makeFormRow(row, idx++);
+        if(cf.formRowCheck) {
+            s+=tt('form-row', rowData);
+        } else {
+            s+=rowData;
+        }
     }
     return s;
 }
+
 function makeFormRow(row, rowIdx) {
     var s='', idx=0;
     var rid=cf.formBaseId+'-'+rowIdx;
     for(var cell of row) {
-        if(!isArr(cell)) continue;
-        s+=makeInputCell(cell, true, cid=rid+'-'+idx++);
+        if(isArr(cell)) {
+            s+=makeInputCell(cell, true, cid=rid+'-'+idx++, null, row);
+            if(cf.formRowCheck==false) {
+                break;
+            }
+        } else if(isObj(cell)) {
+            s+=tt('form-object', cell)
+        }
     }
     return s;
+}
+
+function makeInputDate(conf) {
+    conf.added=true;
+    if(conf.flat) {
+        if(!isset(conf.sty)) conf.sty='cursor: pointer;';
+        conf.objectType='flat';
+        if(conf.range ) {
+            let id=conf.cellId;
+            conf.cellId=id+'-start';
+            conf.sty='width:calc(50% - 50px); cursor:pointer;';
+            if(conf.options) conf.options.onClose=function() {
+                let id=this.input.id;
+                let p=id.lastIndexOf('-');
+                let next=p>0?id.substr(0,p)+'-end': null;
+                if(next) {
+                    setTimeout(function() { $('#'+next).focus() }, 50);
+                }
+            }
+            let s=makeInputDefault(conf);
+            conf.cellId=id+'-end';
+            conf.sty='width:calc(50% - 50px); cursor:pointer;';
+            if(conf.options) conf.options.onClose=null;
+            s+='<span> ~ </span>';
+            s+=makeInputDefault(conf);
+             return tt('form-date', s);
+        } else {
+            return tt('form-date', makeInputDefault(conf));
+        }
+    } else if(conf.time) {
+        conf.objectType='datetime';
+        return tt('form-date', makeInputDefault(conf));
+    } else if(conf.week) {
+        conf.objectType='week';
+        return tt('form-date', makeInputDefault(conf));
+    } else if(conf.items|| conf.range ) {
+        let id=conf.cellId;
+        let v1, v2;
+        if(isArr(conf.items)) {
+            v1=conf.items[0];
+            v2=conf.items[1];
+        } else {
+            v1='시작일', v2='종료일';
+        }
+        return tt('form-daterange',id+'-start', id+'-end', v1, v2);
+    } else {
+        return tt('form-date', makeInputDefault(conf));
+    }
+}
+function makeInputDefault(conf) {   // cell, offset, type, cellId, cellNum, libCheck
+    let inputType='';
+    let type=conf.type;
+    if(type=='input' || type=='edit' || type=='date' || type=='time') {
+        inputType='text';
+    }  else {
+        inputType=type;
+    }
+    let s='<input id="'+conf.cellId+'" type="'+inputType+'" class="form-control"';
+    if(conf.objectType ) {
+        let opt=$.extend({},conf.options);
+        opt.objectType=conf.objectType;
+        s+=' data-type="'+conf.objectType+'"';
+        if(!cf.formModuleMap) cf.formModuleMap={};
+        cf.formModuleMap[conf.cellId]=opt;
+    }
+    if(conf.sty) s+=' style="'+conf.sty+'"';
+    if(isset(conf.hint)) s+=' placeholder="'+conf.hint+'"';
+    s+='>';
+    if(conf.append  ) {
+        conf.added=true;
+        let val=conf.append? conf.append: '원';
+        let pre=conf.prepend || type=='edit' ? (conf.prepend? conf.prepend: 'edit') : null;
+        s=tt('form-input-append', s, val, pre);
+    } else if(conf.icon || conf.search  ) {
+        conf.added=true;
+        let val=conf.icon? conf.icon: 'search';
+        let pre=conf.prepend || type=='edit' ? (conf.prepend? conf.prepend: 'edit') : null;
+        s=tt('form-input-icon', s, val, pre);
+    } else if(conf.prepend || type=='edit' ) {
+        conf.added=true;
+        let val=conf.prepend? conf.prepend: 'edit';
+        s=tt('form-input-prepend', s, val);
+    }
+    if(conf.label) formIdAdd(conf);
+    if(conf.text) s+='<span>'+conf.text+'</span>';
+    return s;
+}
+function makeSelectDefault(conf) {
+    let cls='form-control';
+    let items=makeFormItems(conf.items, conf.hint);
+    if(conf.direct ) {
+        items.push({id:"direct", text:"직접입력"});
+    }
+    if( conf.direct) cls+=' selbox';
+    let s='<select id="'+conf.cellId+'" class="'+cls+'"';
+    if(conf.sty) s+=' style="'+conf.sty+'"';
+    s+='>';
+    for(var item of items) {
+        if(item.id=='*') {
+            s+=`<option value="" selected>${item.text}</option>`;
+        } else {
+            s+=`<option value="${item.id}">${item.text}</option>`;
+        }
+    }
+    s+='</select>';
+    if(conf.label) formIdAdd(conf);
+    if(conf.direct) {
+        conf.added=true;
+        s=tt('form-select-direct', s, conf.cellId+'-edit');
+    } else if(conf.append  ) {
+        conf.added=true;
+        let val=conf.append? conf.append: '원';
+        let pre=conf.prepend? conf.prepend: 'edit';
+        s=tt('form-input-append', s, val, pre);
+    } else if(conf.icon || conf.search  ) {
+        conf.added=true;
+        let val=conf.icon? conf.icon: 'search';
+        let pre=conf.prepend? conf.prepend: 'edit';
+        s=tt('form-input-icon', s, val, pre);
+    } else if(conf.prepend ) {
+        conf.added=true;
+        let val=conf.prepend? conf.prepend: 'edit';
+        s=tt('form-input-prepend', s, val);
+    }
+    if(conf.text) s+='<span>'+conf.text+'</span>';
+    return s;
+}
+
+function makeInputCell(cell, labelCheck, cellId, conf, row) {
+    let label=null, len=cell.length, offset=0;
+    let input='';
+    if(isObj(conf)) {
+        conf.cellId=cellId;
+    } else {
+        conf={cellId:cellId, cellSize:3 };
+    }
+    let confCheck=function() {
+        for(;offset<len;offset++) {
+            let v=cell[offset];
+            if(isNumber(v)) {
+                if(conf.type=='number') {
+                    if( isset(conf.hint) ) conf.cellSize=v;
+                    else conf.hint=v;
+                } else {
+                    conf.cellSize=v;
+                }
+            }
+            else if(isObj(v)) conf.options=v;
+            else if(isArr(v)) conf.items=v;
+            else if(isStr(v)) {
+                if(v[0]=='@') {
+                    if(v.indexOf(':')) conf.sty=v;
+                    else conf.cls=v;
+                } else if(isset(conf.hint)) {
+                    conf.cls=v;
+                } else {
+                    conf.hint=v;
+                }
+            }
+        }
+    }
+    if(labelCheck) {
+        label=cell[0];
+        conf.label=label;
+        offset++;
+        if(!cf.formLabelMap) cf.formLabelMap={};
+        cf.formLabelMap[label]=cellId;
+    }
+    if(isArr(cell[offset]) ) {
+        let n=0, arr=cell[offset++];
+        conf.cellCount=arr.length;
+        for(var sub of arr) {
+            if(!isArr(sub)) continue;
+            input+=makeInputCell(sub,false,cellId+'-'+n);
+            n++;
+        }
+        confCheck();
+        conf.added=false;
+    } else {
+        let type=offset<len ? cell[offset++]:'edit', kinds=null;
+        if(label=='button') {
+            conf.buttonCode=type;
+            type='button';
+        }
+        let p=type.indexOf('-');
+        if(p>0) {
+            kinds=type.split('-');
+            type=type.substr(0,p);
+        }
+        let klen=kinds?kinds.length: 0;
+        conf.type=type;
+        if(type=='date') {
+            for(let n=1;n<klen;n++ ) {
+                let v=kinds[n];
+                if(v=='range') {
+                    conf.range=true;
+                } else if(v=='flat') {
+                    conf.flat=true;
+                } else if(v=='time') {
+                    conf.time=true;
+                } else if(v=='week') {
+                    conf.week=true;
+                } else if(v=='tip') {
+                    conf.tip=cellVal(cell[offset++]);
+                }
+            }
+            confCheck();
+            input=makeInputDate(conf);
+        } else if(type=='time') {
+            for(let n=1;n<klen;n++ ) {
+                let v=kinds[n];
+                if(v=='tip') {
+                    conf.tip=cellVal(cell[offset++]);
+                }
+            }
+            confCheck();
+            conf.objectType='time';
+            input=makeInputDefault(conf);
+        } else if(type=='select'||type=='input'||type=='edit'||
+            type=='number'|| type=='password'||
+            type=='combo'|| type=='list' ||type=='enum'||
+            type=='direct') {
+            for(let n=1;n<klen;n++ ) {
+                let v=kinds[n];
+                if(v=='direct') {
+                    conf.direct=true;
+                } else if(v=='group') {
+                    conf.inputGroup=true;
+                } else if(v=='search') {
+                    conf.search=true;
+                } else if(v=='append') {
+                    conf.append=cellVal(cell[offset++]);
+                } else if(v=='prepend') {
+                    conf.prepend=cellVal(cell[offset++]);
+                } else if(v=='icon') {
+                    conf.icon=cellVal(cell[offset++]);
+                } else if(v=='text') {
+                    conf.text=cellVal(cell[offset++]);
+                } else if(v=='tip') {
+                    conf.tip=cellVal(cell[offset++]);
+                }
+            }
+            if(conf.inputGroup) {
+                if(isArr(cell[offset]) ) {
+                    let n=0, arr=cell[offset++];
+                    let name=conf.label;
+                    conf.cellCount=arr.length;
+                    conf.cellGroup=true;
+                    conf.cellGroupId=name+'-group';
+                    conf.cellGroupBoxId=name;
+                    conf.inputGroup=false;
+                    for(var sub of arr) {
+                        if(!isArr(sub)) continue;
+                        input+=makeInputCell(sub, true, cellId+'-'+n, conf);
+                        n++;
+                    }
+                }
+                return input;
+            }
+            confCheck();
+            if(type=='direct') {
+                type='select';
+                conf.direct=true;
+            } else if(type=='combo'|| type=='list' ||type=='enum') {
+                conf.objectType=type;
+                type='input';
+            }
+            conf.type=type;
+            input=type=='select' ? makeSelectDefault(conf): makeInputDefault(conf);
+        } else if(type=='radio') {
+            for(let n=1;n<klen;n++ ) {
+                let v=kinds[n];
+                if(v=='group') {
+                    conf.radioGroup=true;
+                } else if(v=='text') {
+                    conf.text=cellVal(cell[offset++]);
+                } else if(v=='tip') {
+                    conf.tip=cellVal(cell[offset++]);
+                }
+            }
+            confCheck();
+            if( conf.radioGroup && conf.items) {
+                let formData='', rowData='', idx=0;
+                formIdAdd(conf);
+                cf.formPrevId=cf.formBaseId;
+                for(var cur of conf.items) {
+                    if(!isObj(cur) ) continue;
+                    cur.id=cellId+'-'+idx;
+                    cur.name=cellId;
+                    cur.checked=idx==0? 'checked': '';
+                    cf.formBaseId=cur.id+'-radios';
+                    formData+=tt('form-radios-tab', makeFormBody(cur.form), cur.checked);
+                    idx++;
+                }
+                cf.formBaseId=cf.formPrevId;
+                cf.formRowCheck=false;
+                idx=findNextIndex(row, cell);
+                if(idx>0 ) {
+                    let p=cellId.lastIndexOf('-');
+                    let cid=p>0? cellId.substr(0,p): cellId;
+                    for(;idx<row.length;idx++) {
+                        rowData+=makeInputCell(row[idx], true, cid+'-'+idx, null, row);
+                    }
+                }
+                /* <== 0:라디오버튼들, 1: 아이디, 2: 라벨, 3:폼정보, 4:라이디 박스크기, 5:다른셀정보 */
+                return tt('form-radios', 
+                    conf.items,
+                    cellId,
+                    label=='*'?'':label, 
+                    formData, 
+                    conf.cellSize, 
+                    rowData
+                );
+                return ss;
+            } else if(conf.items ) {
+                let radios='';
+                for(var cur of conf.items ) {
+                    radios+=tt('form-radio-list', cellId, cellId+'-'+cur.id, cur.text, cur.checked);
+                }
+                conf.added=true;
+                input='<fieldset id="'+cellId+'" class="bg-radio">'+radios+'</fieldset>';
+            }
+        } else if(type=='check') {
+            for(let n=1;n<klen;n++ ) {
+                let v=kinds[n];
+                if(v=='tip') {
+                    conf.tip=cellVal(cell[offset++]);
+                }
+            }
+            confCheck();
+            if(conf.items) {
+                let checks='';
+                formIdAdd(conf);
+                for(var cur of conf.items ) {
+                    checks+=tt('form-check-list', cur.id, cur.text, cur.checked);
+                }
+                conf.added=true;
+                input='<div id="'+cellId+'" class="bg-check clearfix">'+checks+'</div>';
+            }
+        } else if(type=='button') {
+            if(!conf.buttonCode) conf.buttonCode=cellVal(cell[offset++]);
+            let id=conf.cellGroupBoxId? conf.cellGroupBoxId: cellId;
+            return tt("form-"+conf.buttonCode, id);
+        } else if(type=='html') {
+            input=cellVal(cell[offset++]);
+            confCheck();
+        } else {
+            conf.type='input';
+            input=makeInputDefault(conf);
+        }
+    }
+    if(conf.cellGroup) {
+        return tt('form-cell-group', label, input, conf.cellGroupBoxId, conf.cellGroupId, cellId, conf.cellSize, conf.tip)
+    } else {
+        return labelCheck ? tt(conf.added? 'form-cell-added': 'form-cell', label, input, cellId, conf.cellSize, conf.tip): input;
+    }
+}
+
+function makeFormContent(tab) {
+    var cotent=tab.content;
+    if(isStr(cotent)) return cotent;
+    return tab.id+' 컨텐츠가 정의되지 않았습니다';
 }
