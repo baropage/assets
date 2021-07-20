@@ -1,0 +1,39 @@
+@charset "UTF-8";
+
+.input-right-margin50 {width:calc(100% - 50px) }
+
+.radio_active {
+    display: block;
+    margin-left: 0px;
+}
+ 
+/* 체크박스 배경 */
+.bg-check {
+    margin-top: 5px;
+    padding: 10px;
+    margin-bottom: -1px;
+    background-color: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    font-weight: 300;
+    border-radius: 0.3rem;
+}
+
+/* 메인 footer 위치 */
+#footer-buttons {
+    position: absolute;
+    right: 10px;
+}
+/* input append 커셔 변경*/
+.input-group-append {
+    cursor: pointer;
+}
+
+.form-object {
+    padding: 15px 5px;
+}
+
+input:not([type=button]):not([type=submit]).w2ui-input {
+    margin-top: 1px;
+    padding: .4375rem .75rem;
+}
+

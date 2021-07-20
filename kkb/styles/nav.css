@@ -30,19 +30,13 @@
 }
 */
 /*서브메뉴 a태그용일때 css처리*/
-.submenu:hover {
-    background-color: #e2eefd;
-}
-.submenu:hover>a {
-    color: #223189;
-    font-weight: bold;
-}
+
 .submenu>a {
     text-decoration: none;
     color: #5a6169;
 }
 
-.submenu_active, .submenu_active:hover, .submenu_active a {
+.submenu_active, .submenu_active a, .submenu:hover, .submenu:hover>a {
     background-color: #e2eefd;
     font-weight: bold;
     color: #223189;

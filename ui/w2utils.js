@@ -55,25 +55,24 @@ var w2utils = (function ($) {
     var obj = {
         version  : '2.0.x',
         settings : {
-            "locale"            : "en-us",
-            "dateFormat"        : "m/d/yyyy",
-            "timeFormat"        : "hh:mi pm",
-            "datetimeFormat"    : "m/d/yyyy|hh:mi pm",
-            "currencyPrefix"    : "$",
-            "currencySuffix"    : "",
-            "currencyPrecision" : 2,
-            "groupSymbol"       : ",",
-            "decimalSymbol"     : ".",
-            "shortmonths"       : ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-            "fullmonths"        : ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-            "shortdays"         : ["M", "T", "W", "T", "F", "S", "S"],
-            "fulldays"          : ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-            "weekStarts"        : "M",        // can be "M" for Monday or "S" for Sunday
-            "dataType"          : 'HTTPJSON', // can be HTTP, HTTPJSON, RESTFULL, RESTFULLJSON, JSON (case sensitive)
-            "phrases"           : {},         // empty object for english phrases
-            "dateStartYear"     : 1950,       // start year for date-picker
-            "dateEndYear"       : 2030,       // end year for date picker
-            "macButtonOrder"    : false       // if true, Yes on the right side
+            locale:"en-us",
+            dateFormat:"yyyy-mm-dd",
+            timeFormat:"hh:mi pm",
+            datetimeFormat:"yyyy-mm-dd|hh:mi pm",
+            currencyPrefix:"$",
+            currencySuffix:"",
+            currencyPrecision:2,
+            groupSymbol:",",
+            decimalSymbol:".",
+            shortmonths:["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+            fullmonths:["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"],
+            shortdays:["월", "화", "수", "목", "금", "토", "일"],
+            fulldays:["월", "화", "수", "목", "금", "토", "일"],
+            weekStarts:"M",
+            dataType:"HTTPJSON",
+            phrases:{},
+            dateStartYear:1950,dateEndYear:2030,
+            macButtonOrder:false
         },
         isBin           : isBin,
         isInt           : isInt,

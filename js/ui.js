@@ -2,6 +2,7 @@ const CHARS = new Set("_0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST
 
 var cf={tag: "config" };
 String.prototype.trim = function() { return this.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '') };
+String.prototype.splitTrim = function(sep) { return this.split(sep).map(item => item.trim()) };
 String.prototype.ch = function( c, pos) {
 	if( pos===undefined ) {
 		pos=0;
@@ -50,6 +51,16 @@ String.prototype.fmt=function() {
     }
 	return new Function(...names, `return \`${this}\`;`)(...vals);
 }
+String.prototype.padding = function(n, c) {
+    if(n==null) n=2;
+	var val = this.valueOf();
+	if ( Math.abs(n) <= val.length ) {
+		return val;
+	}
+	var m = Math.max((Math.abs(n) - this.length) || 0, 0);
+	var pad = Array(m + 1).join(String(c || '0').charAt(0));
+	return n ? pad + val : val + pad;
+};
 
 Array.prototype.remove = function(from, to) {
   var rest = this.slice((to || from) + 1 || this.length);
@@ -140,7 +151,19 @@ function bracketsPos(str, pos, len) {
     return -1;
 }
 
-
+function codeEndPos(str, pos, slen) {
+    let first=true;
+    for(let n=pos;n<slen;n++) {
+        let ch=str[n];
+        if(first ) {
+            if(ch==' '||ch=='\n'||ch=='\t'||ch=='\r') continue;
+            first=false;
+        }
+        if( CHARS.has(ch) || ch=='-' || ch==':' ) continue;
+        else return n;
+    }
+    return slen;
+}
 function varEndPos(str, pos, len) {
     if(pos>=len) return len;
     let first=true;
@@ -478,220 +501,6 @@ function addPageModule(mtype, mname, func ) {
     }
 }
 
-function tpl(str, data) {
-	var func=null;
-	if(typeof str == 'object' ) {
-		var code=data;
-		data=str;
-		if(!code) {
-			str="템플릿 코드 오류 ";
-		} else {
-			str=getPageValue(code);
-			if(!str) str=code+" 템플릿 코드 오류 ";
-		}
-		func=Template7(str).compile();
-	} else {
-		if(!str) str="템플릿 데이터 미정의";
-		func=Template7(str).compile();
-	}
-    return data && func ? func(data): func;
-}
-function tplFunc(name, func) {
-    if(typeof func=="function") {
-        Template7.registerHelper(name, func);
-    }
-}
-
-function getFormInput( type, id, sty, items, classType) {
-    if(classType) sty+=classType;
-	var input='';
-	switch(type) {
-	case 'input':
-	case 'text':
-		input = '<input id="' + id + '" name="' + id + '" class="frm-input"' + sty + '>';
-		break;
-	case 'pass':
-	case 'password':
-		input = '<input id="' + id + '" name="' + id + '" class="frm-input" type="password"' + sty + '>';
-		break;
-	case 'check':
-		if(!isArr(items)) items = [];
-		if(items.length ) items = makeFormItems(items);
-		for (var i = 0; i < items.length; i++) {
-			input += '<label class="w2ui-box-label">'+
-					 '  <input id="' + id + i +'" name="' + id + '" class="frm-input" type="checkbox" ' +
-								sty + ' data-value="'+ items[i].id +'" data-index="'+ i +'">' +
-						'<span>&#160;' + items[i].text + '</span>' +
-					 '</label><br>';
-		}
-		break;
-
-	case 'checkbox':
-		input = '<input id="'+ id +'" name="'+ id +'" class="frm-input" type="checkbox" '+ sty + '>';
-		break;
-	case 'radio':
-		if(!isArr(items)) items = [];
-		if(items.length ) items = makeFormItems(items);
-		for (var i = 0; i < items.length; i++) {
-			input += '<label class="w2ui-box-label">'+
-					 '  <input id="' + id + i + '" name="' + id + '" class="frm-input" type = "radio" value="'+ items[i].id + '">' +
-						'<span>&#160;' + items[i].text + '</span>' +
-					 '</label><br>';
-		}
-		break;
-	case 'select':
-		input = '<select id="' + id + '" name="' + id + '" class="frm-input" ' + sty + '>';
-		if(!isArr(items)) items = [];
-		if(items.length ) items = makeFormItems(items);
-		for (var i = 0; i < items.length; i++) {
-			input += '<option value="'+ items[i].id + '">' + items[i].text + '</option>';
-		}
-		input += '</select>';
-		break;
-	case 'textarea':
-		input = '<textarea id="'+ id +'" name="'+ id +'" class="frm-input" '+ sty + '></textarea>';
-		break;
-	case 'toggle':
-		input = '<input id="'+ id +'" name="'+ id +'" type="checkbox" '+ sty + ' class="frm-input w2ui-toggle"><div><div></div></div>';
-		break;
-	default: break;
-	}
-	return input;
-}
- 
-
-function makeFormTable(data, formType, el, appendMode) {
-    // data = {id:xxx, form:[]} or [[...]]
-    var form=null, formId="";
-    if(!data) {
-        data=cf.formData;
-    }
-    if(isArr(data)) {
-        form=data;
-    } else if(!isObj(data)) {
-		data=cf.formData;
-		if(isArr(data)) {
-    	    from=data;
-    	}
-	}
-	if(isObj(data)) {
-	    form=data.form;
-	    if(!formType) formType=data.type;
-	    formId=data.id? data.id: data.name? data.name: '';
-	} 
-	if(!isArr(form)) return alert("폼 정보가 정의되지 않았습니다");
-	if(!formType) {
-	    formType="form-area";
-	}
-	var getFormRow=function(form, depth, map) {
-		var s='';
-		if(!isArr(form) ) {
-			return;
-		}
-		var len=form.length;
-		if( len && isArr(form[0])) {
-			if(depth) s+='<div class="form-row">';
-			for(var row of form) {
-				if(depth==0) {
-					s+=getFormRow(row,depth+1,map);
-				} else {
-					s+='<div class="cell-'+len+'">'+getFormRow(row,depth+1,map)+'</div>';
-				}
-			}
-			if(depth) s+='</div>';
-		} else {
-			var name=form[0], id=form[1], type=form[2];
-			var input='', span='';
-			if(id=='html'||id=='div') {
-			    if(id=='html') {
-			        input = '<div data-type="frm-html">'+type+'</div>';
-			    } else {
-			        input = '<div id="'+ type +'">'+form[3]+'</div>';
-			    }
-			} else {
-			    var f3=form[3], f4=form[4], items=null;
-    			var sty='', classType='';
-    			if(isNum(f3)) sty=' style="width:'+f3+'px"';
-    			else if(isStr(f3)) sty=' style="'+f3+'"';
-    			else if(isObject(f3)) items=f3;
-    			if(isStr(f4)) span=' <span>'+f4+'</span>';
-    			else if(isObject(f4)) items=f4;
-    			if(isStr(form[5]) && span=='') span=' <span>'+form[5]+'</span>';
-    			if(!type) type='input';
-    			if(type.charAt(0)=='@') {
-    			    classType=' data-type="'+type.substr(1)+'"';
-    			    if(isObj(items)) {
-    			        if(id) map[id]=items;
-    			    } else {
-    			        classType+=' data-kind="w2field"';
-    			    }
-    			    type='input';
-    			}
-			    input=getFormInput( type, id, sty, items, classType);
-			}
-			if(span) input+=span;
-			s+='<div class="form-field"><label>'+name+'</label>'+input+'</div>';
-		}
-		return s;
-	};
-	var map={};
-	var s='<div';
-	if(formId) s+=' id="'+formId+'"';
-	s+=' class="'+formType+'">';
-	s+=getFormRow(form,0,map);
-	s+='</div>';
-	if(isEl(el)) {
-	    if(appendMode) {
-	        $(el).append(s);
-	    } else {
-	        $(el).html(s);
-	    }
-	    $.each(map, function(id,opt) {
-	        var el=getEl(id);
-	        if(el) {
-	            var type=el.getAttribute("data-type");
-	            console.log("w2 field ", id, type, opt);
-	            opt.items=makeFormItems(opt.items);
-	            makeW2Form(el, type, opt);
-	        }
-	    });
-	    var target=formId? '#'+formId: '.'+formType;
-	    $(target).find('[data-kind]').each(function() {
-	        makeW2Form(this, $(this).data("type")); 
-	    });
-	}
-	return s;
-}    
-
-function makeW2Form(el, type, opt) {
-    if(!isEl(el)) return console.log(">> ui makeW2Form error (el, type, opt)", el, type, opt);
-    if(type.startsWith("flat-")) {
-        if(!isObj(opt)) opt={};
-        flatpickr(el, opt);
-        return;
-    }
-    if(type=='combo'||type=='list'||type=='enum'||type=='file') {
-        if(!isObj(opt)) opt={};
-    }
-    switch(type) {
-    case 'date': $(el).w2field('date', opt?opt:{ silent: false}); break;
-    case 'date-week': $(el).w2field('date', opt?opt:{ silent: false, format: 'yyyy-m-d', blockWeekDays: [0,6]}); break;
-    case 'date-time': $(el).w2field('datetime', opt?opt:{}); break;
-    case 'time': $(el).w2field('time', opt?opt:{ start: '8:15am', end: '4:30pm' }); break;
-    case 'time-hour': $(el).w2field('time', opt?opt:{ noMinutes: true }); break;
-    case 'color': $(el).w2field(opt?opt:'color'); break;
-    case 'int': $(el).w2field(opt?opt:'int'); break;
-    case 'float': $(el).w2field(opt?opt:'float'); break;
-    case 'percent': $(el).w2field('percent', opt?opt:{ precision: 0, min: 0, max: 100 }); break;
-    case 'alphanum': $(el).w2field(opt?opt:'alphanumeric'); break;
-    case 'combo': $(el).w2field('combo', opt); break;
-    case 'list': $(el).w2field('list', opt); break;
-    case 'enum': $(el).w2field('enum', opt); break;
-    case 'file': $(el).w2field('file', opt); break;
-    default: break;
-    }
-}
-
 function loadScript(src, func) {
 	var script = document.createElement('script');
 	script.setAttribute('type', "text/javascript");
@@ -727,7 +536,12 @@ function clearOpt(sel) {
     if(!sel) return;
     while(sel.childNodes.length) sel.remove(0);
 }
-
+function clearEl(el) {
+    if(!isEl(el)) return;
+    while(el.firstChild) {
+        el.removeChild(el.firstChild);
+    }
+}
 function getEl(id) {
 	return document.getElementById(id);
 }
@@ -871,7 +685,30 @@ function copyText(text) {
 	document.body.removeChild(textArea);
 }
 
-function generateHexString(length) {
+function randomKey() {
+    // var today = new Date();
+    // var milliseconds = today.getMilliseconds();
+    return (new Date%9e6).toString(36);
+}
+
+function randomCode(cd) {
+    if(cd) {
+        if(cf.randomCodePrefix!=cd) {
+            cf.randomCodeIndex=0;
+            cf.randomCodePrefix=cd;
+        }
+    } else if(cf.randomCodePrefix) {
+        cd=cf.randomCodePrefix;
+    } else {
+        cd=randomKey();
+        cf.randomCodePrefix=cd;
+        cf.randomCodeIndex=0;
+    }
+    cd+=String(cf.randomCodeIndex++).padding(3);
+    return cd;
+}
+
+function randomString(length) {
   var ret = "";
   while (ret.length < length) {
     ret += Math.random().toString(16).substring(2);
@@ -1141,45 +978,124 @@ function getQuery(param) {
 	if(isStr(param)) {
 	    data={queryCode:param};
 	} else if(isArr(param)) {
+	    // code, filter, pageCode
 	    var len=param.length;
 	    data={queryCode:param[0]};
-	    if(isArr(param[1])) {
-	        data.binds=param[1];
-	        if(len==3) data.pageCode=param[2];
-	    } else if(isArr(param[2])) {
-	        data.filter=param[1];
-	        data.binds=param[2];
-	        if(len==4) data.pageCode=param[3];
-	    } else if(len>1) {
-	        var mode=param[2];
-	        if(param[1]) data.pageCode=param[1];
-	        if(mode) {
-    	        if(mode=='bind'||mode=='exec'||mode=='check'||mode=='match' ) {
-    	            var binds=[];
-    	            for(var n=3;n<len;n++) {
-    	                if(mode=='check' && n==3) data.checkCode=param[n];
-    	                binds.push(param[n]);
-    	            }
-    	        } else if(mode=='filter') {
-    	            data.filter=param[3];
-    	        } 
-    	        data.mode=mode;
-	        }
-	    }
+	    if(len>1) data.filter=param[1];
+	    if(len>2) data.pageCode=param[2];
+	    if(isArr(param[3])) data.binds=param[3];
 	} else if(isObj(param)) {
 	    data=param;
 	}
 	return isObj(data) ? JSON.stringify(data): '';
 }
+function makeBindArray(node, data) {
+    if(!isObj(node)) return null;
+    node.binds=[];
+    let sp=0, ep=0, slen=data.length, ch=null, val=null;
+    let chk=true;
+    for(let n=0;n<2048 && sp<slen; n++ ) {
+        p=blankPos(data, sp, slen);
+        if(p==-1) {
+            break;
+        }
+        ch=data[p];
+        if(ch==',') {
+            if(chk) {
+                sp=p+1;
+                continue;
+            }   
+        }
+        sp=p;
+        chk=true;
+        if(ch=='@') {
+            let ok=true;
+            ep=codeEndPos(data,p+1,slen);
+            val=data.slice(p+1,ep);
+            if(val=='code') node.binds.push(randomCode());
+            else if(val=='key') node.binds.push(randomKey());
+            else ok=false;
+            if(ok) {
+                sp=ep;
+                continue;
+            }
+        } 
+        if(ch=='\''||ch=='\''||ch=='{') {
+            sp=p+1;
+            if(ch=='{') {
+                ep=bracketsPos(data,sp,slen);
+            } else {
+                ep=data.indexOf(ch, sp);
+            }
+        } else {
+            chk=false;
+            p=data.indexOf('\n',sp);
+            ep=data.indexOf(',',sp);
+            if(p>0 && ep>p) ep=p;
+        }
+        if(ep==-1) ep=slen;
+        if(sp==ep) {
+            node.binds.push(chk?'':null);
+        } else {
+            val=data.slice(sp,ep)
+            node.binds.push(chk?val: val.trim() );
+        }
+        sp=ep+1;
+    }
+    return node;
+}
+function bindTables(param, queryCode, keys, data, exec, bindCount) {
+    if(isObj(param)) return console.log("테이블 쿼리 기준 노드가 정의되지 않았습니다");
+    if(!isArr(param.tables)) param.tables=[];
+    let info={};
+    
+    let p=0;
+    if(queryCode[0]=='#') {
+        info.queryId=queryCode.substr(1).trim();
+    } else {
+        p=queryCode.indexOf('.');
+        if(p>0) {
+            info.pageCode=queryCode.slice(0,p);
+            info.queryCode=queryCode.substr(p+1);
+        } else {
+            info.queryCode=queryCode;
+        }
+    }
+    if(isStr(keys)) info.keys=keys.split(',').map(item => item.trim());
+    if(exec) info.exec=exec;
+    if(isNumber(bindCount)) info.bindCount=bindCount;
+    makeBindArray(info, data);
+    param.tables.push(info);
+    return info;
+}
+
 
 function ajaxQuery(param, successFunc, errorFunc) {
+    /*
+    param =>
+        mode: 
+            insertAll or insertKey 쿼리저장
+            insertOverwrite
+            
+        tables : 여러개 테이블 처리 (queryId or queryCode, keys , binds, bindCount ...)
+        queryCode or queryId
+        pageCode [defualt current pageCode]
+        binds [array]
+        filter [ex) and user_id='aaa']
+        params [ex) user_id:'aaa' ==> #{id} ]
+    */
 	if(typeof errorFunc !='function' ) errorFunc=defaultErrorFunc;
+    var url=getUrl('getJsonList');
+	var formData=new FormData();
+    if(isObj(param) && param.hasOwnProperty('queryText')) { 
+	    formData.append("queryText", param.queryText);
+	    delete param.queryText;
+	}
 	var query=getQuery(param);
 	if(!query) return alert("DB조회 쿼리 오류");
-	var formData=new FormData();
-	var url=getUrl('getJsonList');
 	formData.append("dataType", "sql");
 	formData.append("sqlParam", query);
+	
 	$.ajax({
 		url:url, type:'post', enctype:'multipart/form-data', dataType:'json',
 		data: formData,
@@ -1190,12 +1106,18 @@ function ajaxQuery(param, successFunc, errorFunc) {
 }
 function ajaxExec(param, successFunc, errorFunc) {
 	if(typeof errorFunc !='function' ) errorFunc=defaultErrorFunc;
-	var query=getQuery(param);
-	if(!query) return alert("DB실행 쿼리 오류");
-	var formData=new FormData();
+
 	var url=getUrl('execQuery');
+	var formData=new FormData();
+    if(isObj(param) && param.hasOwnProperty('queryText')) { 
+	    formData.append("queryText", param.queryText);
+	    delete param.queryText;
+	}
+	var query=getQuery(param);
+	if(!query) return alert("DB조회 쿼리 오류");
 	formData.append("dataType", "sql");
 	formData.append("sqlParam", query);
+
 	$.ajax({
 		url:url, type:'post', enctype:'multipart/form-data', dataType:'json',
 		data: formData,
@@ -1204,7 +1126,26 @@ function ajaxExec(param, successFunc, errorFunc) {
 		error: errorFunc
 	});
 }
-
+function ajaxExecValue(param, successFunc, errorFunc) {
+	if(typeof errorFunc !='function' ) errorFunc=defaultErrorFunc;
+	var url=getUrl('execQuery');
+	var formData=new FormData();
+    if(isObj(param) && param.hasOwnProperty('queryText')) { 
+	    formData.append("queryText", param.queryText);
+	    delete param.queryText;
+	}
+	var query=getQuery(param);
+	if(!query) return alert("DB조회 쿼리 오류");
+	formData.append("dataType", "sql");
+	formData.append("sqlParam", query);
+	$.ajax({
+		url:url, type:'post', enctype:'multipart/form-data', dataType:'text',
+		data: formData,
+		processData:false, contentType:false, cache:false,
+		success: successFunc,
+		error: errorFunc
+	});
+}
 function setPopupContent(div, actionName, initFunc) {
 	if(cf[div] ) {
 		$('#'+div).html(cf[div]);
@@ -1292,6 +1233,20 @@ function w2popupClose() {
 }
 
 /* kokobot util */
+function measureTextWidth(pText, pFontSize) {
+    let el = cf.divTemp;
+    if(!el) {
+        el=document.createElement('div');
+        el.style.position = "absolute";
+        el.style.left = -1000;
+        el.style.top = -1000;
+        cf.divTemp=el;
+        document.body.appendChild(el);
+    }
+    if(isNumber(pFontSize)) el.style.fontSize = "" + pFontSize + "px";
+    el.innerHTML = pText;
+    return el.clientWidth;
+}
 function findCur(arr, cur) {
     if(!isArr(arr)) return -1;
     let n=0;
@@ -1497,6 +1452,14 @@ function makeFooterButtons(data) {
 }
 
 /* kokobot forms */
+function isChildId(arr, id) {
+    if(isArr(arr) && id) {
+        for(let cur of arr) {
+            if(isObj(cur) && cur.id==id) return cur;
+        }
+    } 
+    return null;
+}
 function findIdNode(id) {
     for(let cur of cf.formIdAll) {
         if(cur.id==id) return cur;
@@ -1628,43 +1591,18 @@ function makeForms(formId, forms, tab) {
     var title='';
     if(!formId) formId='forms';
     if(!cf.formIdx) cf.formIdx=1;
-    if(isObj(tab) ) {
-        title=tab.title;
-        if(!title) title=tab.text;
-    }
     if(isArr(forms) && isObj(forms[0]) ) {
-        var checked=null;
-        var radioCnt=0, radioBoxSize=5, formCnt=0, formIdx=1;
+        let formIdx=0;
         for(var cur of forms) {
-            if(cur.type=='radio') {
-                if(!cur.name) cur.name=formId;
-                if(cur.checked) checked=cur;
-                radioCnt++;
-            } else {
-                formCnt++;
-            }
-        }
-        if(radioCnt) {
-            var radioData='',formData='';
-            for(var cur of forms) {
-                if(cur.type!='radio') continue;
-                if(checked==null) checked=cur;
-                cf.formBaseId=formId+'-'+formIdx++;
-                cur.checked=checked==cur ? 'checked':'';
-                // cur 에 id, name, text, checked  항목이설정되어 있어야됨
-                radioData+=tt('form-radios-loop').fmt(cur);
-                formData+=tt('form-radios-tab', makeFormBody(cur.form), checked==cur );
-            }
-            s+=tt('form-start', title, tt('form-radios', radioData, formData, radioBoxSize) );
-        } 
-        if( formCnt) {
-            for(var cur of forms) {
-                if(cur.type=='radio') continue;
-                cf.formBaseId=formId+'-'+formIdx++;
-                s+=tt('form-start', cur.title, makeFormBody(cur.form) );
-            }
+            cf.formBaseId=formId+'-'+formIdx++;
+            console.log("xxxx forms xxxx", cf.formBaseId, cur);
+            s+=tt('form-start', cur.title, makeFormBody(cur.form) );
         }
     } else if(isArr(forms)) {
+        if(isObj(tab) ) {
+            title=tab.title;
+            if(!title) title=tab.text;
+        }
         cf.formBaseId=formId;
         s=tt('form-start', title, makeFormBody(forms) );
     } else if(isObj(forms)) {
@@ -1683,7 +1621,8 @@ function cellVal(val) {
 function formIdAdd(conf) {
     let id=conf.cellId, name=conf.label;
     let map=cf.formIdMap;
-    if(!isObj(map) || !name) return console.log(`${name} 폼요소 추가오류(id:${id})`);
+    if(!name) name='*';
+    if(!isObj(map) ) return console.log(`${name} 폼요소 추가오류(id:${id})`);
     if(!isArr(cf.formIdAll)) cf.formIdAll=[];
     cf.formIdAll.push({id:id, name:name, type:conf.type });
     map[id]=name;
@@ -1709,10 +1648,13 @@ function formModuleCheck() {
         case 'percent': $(el).w2field('percent', opt?opt:{ precision: 0, min: 0, max: 100 }); break;
         case 'alphanum': $(el).w2field(opt?opt:'alphanumeric'); break;
         */
+        case 'flat': 
+            flatpickr(el, opt); 
+            if(opt.hint) el.placeholder=opt.hint;
+            break;
         case 'datetime': $(el).w2field('datetime', opt?opt:{}); break;
         case 'week': $(el).w2field('date', opt?opt:{ silent: false, format: 'yyyy-m-d', blockWeekDays: [0,6]}); break;
         case 'time': $(el).w2field('time', opt?opt:{ start: '8:15am', end: '4:30pm' }); break;
-        case 'flat': flatpickr(el, opt); break;
         case 'combo': $(el).w2field('combo', opt); break;
         case 'list': $(el).w2field('list', opt); break;
         case 'enum': $(el).w2field('enum', opt); break;
@@ -1744,8 +1686,8 @@ function makeFormBody(forms) {
         console.log(">> makeFormBody 폼데이터가 배열이 아닙니다 forms: ", forms);
         return '';
     }
-    var s='';
-    var idx=0, base=cf.formBaseId;
+    let s='';
+    let idx=0, base=cf.formBaseId;
     if(!cf[base]) {
         cf[base]={};
         cf.formIdMap=cf[base];
@@ -1753,17 +1695,18 @@ function makeFormBody(forms) {
     if(!cf.formBases) {
         cf.formBases=[];
     }
-    var findBase=function(base) {
+    let findBase=function(base) {
         for(var name of cf.formBases ) {
             if(name==base) return true;
         }
         return false;
     };
     if(!findBase(base) ) cf.formBases.push(base);
-    for(var row of forms) {
+    
+    for(let row of forms) {
         if(!isArr(row)) continue;
         cf.formRowCheck=true;
-        var rowData=makeFormRow(row, idx++);
+        let rowData=makeFormRow(row, idx++);
         if(cf.formRowCheck) {
             s+=tt('form-row', rowData);
         } else {
@@ -1776,14 +1719,19 @@ function makeFormBody(forms) {
 function makeFormRow(row, rowIdx) {
     var s='', idx=0;
     var rid=cf.formBaseId+'-'+rowIdx;
+    if(!isArr(row)) return '';
+    if(!isObject(row[0])) {
+        return makeInputCell(row, true, rid+'-0');
+    }
     for(var cell of row) {
+        let cid=rid+'-'+idx++;
         if(isArr(cell)) {
-            s+=makeInputCell(cell, true, cid=rid+'-'+idx++, null, row);
+            s+=makeInputCell(cell, true, cid, null, row);
             if(cf.formRowCheck==false) {
                 break;
             }
         } else if(isObj(cell)) {
-            s+=tt('form-object', cell)
+            s+=tt('form-object', cell, cid)
         }
     }
     return s;
@@ -1839,21 +1787,30 @@ function makeInputDate(conf) {
 function makeInputDefault(conf) {   // cell, offset, type, cellId, cellNum, libCheck
     let inputType='';
     let type=conf.type;
+    let cls='form-control';
+    let sty=conf.sty? conf.sty: '';
+    if(conf.text) {
+        let wid=measureTextWidth(conf.text)+10;
+        sty+='float:left; width:calc(100% - '+wid+'px);';
+    }
     if(type=='input' || type=='edit' || type=='date' || type=='time') {
         inputType='text';
     }  else {
         inputType=type;
     }
-    let s='<input id="'+conf.cellId+'" type="'+inputType+'" class="form-control"';
+    if(conf.cls) cls+=' '+conf.cls;
+    let s='<input id="'+conf.cellId+'" type="'+inputType+'" class="'+cls+'"';
     if(conf.objectType ) {
         let opt=$.extend({},conf.options);
         opt.objectType=conf.objectType;
+        if(conf.hint) opt.hint=conf.hint;
         s+=' data-type="'+conf.objectType+'"';
         if(!cf.formModuleMap) cf.formModuleMap={};
         cf.formModuleMap[conf.cellId]=opt;
     }
-    if(conf.sty) s+=' style="'+conf.sty+'"';
+    if(sty) s+=' style="'+sty+'"';
     if(isset(conf.hint)) s+=' placeholder="'+conf.hint+'"';
+    if(isset(conf.disable)) s+=' disable';
     s+='>';
     if(conf.append  ) {
         conf.added=true;
@@ -1877,8 +1834,13 @@ function makeInputDefault(conf) {   // cell, offset, type, cellId, cellNum, libC
 function makeSelectDefault(conf) {
     let cls='form-control';
     let items=makeFormItems(conf.items, conf.hint);
+    let sty=conf.sty? conf.sty: '';
     if(conf.direct ) {
-        items.push({id:"direct", text:"직접입력"});
+        if(!isChildId(items, 'direct') ) items.push({id:"direct", text:"직접입력"});
+    }
+    if(conf.text) {
+        let wid=measureTextWidth(conf.text)+10;
+        sty+='float:left; width:calc(100% - '+wid+'px);';
     }
     if( conf.direct) cls+=' selbox';
     let s='<select id="'+conf.cellId+'" class="'+cls+'"';
@@ -1915,14 +1877,12 @@ function makeSelectDefault(conf) {
     return s;
 }
 
-function makeInputCell(cell, labelCheck, cellId, conf, row) {
+function makeInputCell(cell, labelCheck, cellId, pconf, row, sty) {
+    if(!cf.formDefaultSize ) cf.formDefaultSize=3;
     let label=null, len=cell.length, offset=0;
     let input='';
-    if(isObj(conf)) {
-        conf.cellId=cellId;
-    } else {
-        conf={cellId:cellId, cellSize:3 };
-    }
+    let conf={cellId:cellId, cellSize:cf.formDefaultSize };
+    if(sty) conf.sty=sty;
     let confCheck=function() {
         for(;offset<len;offset++) {
             let v=cell[offset];
@@ -1938,8 +1898,8 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
             else if(isArr(v)) conf.items=v;
             else if(isStr(v)) {
                 if(v[0]=='@') {
-                    if(v.indexOf(':')) conf.sty=v;
-                    else conf.cls=v;
+                    if(v.indexOf(':')>0) conf.sty=v.substr(1);
+                    else conf.cls=v.substr(1);
                 } else if(isset(conf.hint)) {
                     conf.cls=v;
                 } else {
@@ -1950,23 +1910,35 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
     }
     if(labelCheck) {
         label=cell[0];
-        conf.label=label;
-        offset++;
+        if( label=='radio-group') {
+            label='';
+        } else {
+            conf.label=label;
+            offset++;
+        }
         if(!cf.formLabelMap) cf.formLabelMap={};
         cf.formLabelMap[label]=cellId;
+    } else if(isObj(pconf)) {
+        conf.label=pconf.label;
     }
     if(isArr(cell[offset]) ) {
         let n=0, arr=cell[offset++];
-        conf.cellCount=arr.length;
+        let per=parseInt(100/arr.length);
+        let sty='float:left;width:'+per+'%';
+        console.log("xx input arr xx", cell, sty);
         for(var sub of arr) {
             if(!isArr(sub)) continue;
-            input+=makeInputCell(sub,false,cellId+'-'+n);
+            input+=makeInputCell(sub,false,cellId+'-'+n, conf, row, sty);
             n++;
         }
         confCheck();
         conf.added=false;
+    } else if(isObj(cell[offset]) ) {
+        input=tt('form-object', cell[offset++], cellId);
+        confCheck();
     } else {
         let type=offset<len ? cell[offset++]:'edit', kinds=null;
+        if(!isStr(type)) type='input';
         if(label=='button') {
             conf.buttonCode=type;
             type='button';
@@ -1985,10 +1957,14 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
                     conf.range=true;
                 } else if(v=='flat') {
                     conf.flat=true;
+                } else if(v=='disable') {
+                    conf.disable=true;
                 } else if(v=='time') {
                     conf.time=true;
                 } else if(v=='week') {
                     conf.week=true;
+                } else if(v=='hint') {
+                    conf.hint=cellVal(cell[offset++]);
                 } else if(v=='tip') {
                     conf.tip=cellVal(cell[offset++]);
                 }
@@ -2000,6 +1976,8 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
                 let v=kinds[n];
                 if(v=='tip') {
                     conf.tip=cellVal(cell[offset++]);
+                } else if(v=='disable') {
+                    conf.disable=true;
                 }
             }
             confCheck();
@@ -2007,12 +1985,14 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
             input=makeInputDefault(conf);
         } else if(type=='select'||type=='input'||type=='edit'||
             type=='number'|| type=='password'||
-            type=='combo'|| type=='list' ||type=='enum'||
+            type=='combo'|| type=='list' || type=='enum'|| type=='file' ||
             type=='direct') {
             for(let n=1;n<klen;n++ ) {
                 let v=kinds[n];
                 if(v=='direct') {
                     conf.direct=true;
+                } else if(v=='disable') {
+                    conf.disable=true;
                 } else if(v=='group') {
                     conf.inputGroup=true;
                 } else if(v=='search') {
@@ -2025,6 +2005,8 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
                     conf.icon=cellVal(cell[offset++]);
                 } else if(v=='text') {
                     conf.text=cellVal(cell[offset++]);
+                } else if(v=='hint') {
+                    conf.hint=cellVal(cell[offset++]);
                 } else if(v=='tip') {
                     conf.tip=cellVal(cell[offset++]);
                 }
@@ -2050,7 +2032,7 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
             if(type=='direct') {
                 type='select';
                 conf.direct=true;
-            } else if(type=='combo'|| type=='list' ||type=='enum') {
+            } else if(type=='combo'|| type=='list' ||type=='enum' || type=='file') {
                 conf.objectType=type;
                 type='input';
             }
@@ -2061,6 +2043,8 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
                 let v=kinds[n];
                 if(v=='group') {
                     conf.radioGroup=true;
+                } else if(v=='disable') {
+                    conf.disable=true;
                 } else if(v=='text') {
                     conf.text=cellVal(cell[offset++]);
                 } else if(v=='tip') {
@@ -2088,7 +2072,7 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
                     let p=cellId.lastIndexOf('-');
                     let cid=p>0? cellId.substr(0,p): cellId;
                     for(;idx<row.length;idx++) {
-                        rowData+=makeInputCell(row[idx], true, cid+'-'+idx, null, row);
+                        rowData+=makeInputCell(row[idx], true, cid+'-'+idx, conf, row);
                     }
                 }
                 /* <== 0:라디오버튼들, 1: 아이디, 2: 라벨, 3:폼정보, 4:라이디 박스크기, 5:다른셀정보 */
@@ -2101,9 +2085,9 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
                     rowData
                 );
                 return ss;
-            } else if(conf.items ) {
+            } else if(isArr(conf.items) ) {
                 let radios='';
-                for(var cur of conf.items ) {
+                for(var cur of makeFormItems(conf.items) ) {
                     radios+=tt('form-radio-list', cellId, cellId+'-'+cur.id, cur.text, cur.checked);
                 }
                 conf.added=true;
@@ -2114,13 +2098,15 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
                 let v=kinds[n];
                 if(v=='tip') {
                     conf.tip=cellVal(cell[offset++]);
+                } else if(v=='disable') {
+                    conf.disable=true;
                 }
             }
             confCheck();
-            if(conf.items) {
+            if(isArr(conf.items)) {
                 let checks='';
                 formIdAdd(conf);
-                for(var cur of conf.items ) {
+                for(var cur of makeFormItems(conf.items) ) {
                     checks+=tt('form-check-list', cur.id, cur.text, cur.checked);
                 }
                 conf.added=true;
@@ -2138,7 +2124,7 @@ function makeInputCell(cell, labelCheck, cellId, conf, row) {
             input=makeInputDefault(conf);
         }
     }
-    if(conf.cellGroup) {
+    if(isObj(pconf) && pconf.cellGroup) {
         return tt('form-cell-group', label, input, conf.cellGroupBoxId, conf.cellGroupId, cellId, conf.cellSize, conf.tip)
     } else {
         return labelCheck ? tt(conf.added? 'form-cell-added': 'form-cell', label, input, cellId, conf.cellSize, conf.tip): input;

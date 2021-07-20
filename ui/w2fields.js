@@ -421,7 +421,7 @@
                         align         : 'both',   // same width as control
                         altRows       : true,     // alternate row color
                         renderItem    : null,     // render selected item
-                        style         : '',       // style for container div
+                        style         : 'height:36px;',       // style for container div
                         onClick       : null,     // when an item is clicked
                         onAdd         : null,     // when an item is added
                         onRemove      : null,     // when an item is removed
@@ -433,7 +433,7 @@
                     if (!$.isArray(options.selected)) options.selected = [];
                     $(this.el).data('selected', options.selected);
                     if ($(this.el).attr('placeholder') == null) {
-                        $(this.el).attr('placeholder', w2utils.lang('Attach files by dragging and dropping or Click to Select'));
+                        $(this.el).attr('placeholder', w2utils.lang('드리그&드롭 파일추가 또는 클릭후 파일선택'));
                     }
                     this.addMulti();
                     this.watchSize();
@@ -769,7 +769,7 @@
                 // adjust height
                 $(this.el).height('auto');
                 var cntHeight = $(div).find('> div.w2ui-multi-items').height() + w2utils.getSize(div, '+height') * 2;
-                if (cntHeight < 26) cntHeight = 26;
+                if (cntHeight < 26) cntHeight = 36;
                 if (cntHeight > options.maxHeight) cntHeight = options.maxHeight;
                 if (div.length > 0) div[0].scrollTop = 1000;
                 var inpHeight = w2utils.getSize($(this.el), 'height') - 2;
@@ -2741,8 +2741,8 @@
             if (options == null) options = { format: w2utils.settings.timeFormat };
             var h24 = (options.format.indexOf('h24') > -1);
             for (var a = 0; a < 24; a++) {
-                var time = (a >= 12 && !h24 ? a - 12 : a) + ':00' + (!h24 ? (a < 12 ? ' am' : ' pm') : '');
-                if (a == 12 && !h24) time = '12:00 pm';
+                var time = (a >= 12 && !h24 ? a - 12 : a) + ':00' + (!h24 ? (a < 12 ? ' AM' : ' PM') : '');
+                if (a == 12 && !h24) time = '12:00 PM';
                 if (!tmp[Math.floor(a/8)]) tmp[Math.floor(a/8)] = '';
                 var tm1 = this.fromMin(this.toMin(time));
                 var tm2 = this.fromMin(this.toMin(time) + 59);
@@ -2756,7 +2756,7 @@
             }
             var html =
                 '<div class="w2ui-calendar">'+
-                '   <div class="w2ui-calendar-title">'+ w2utils.lang('Select Hour') +'</div>'+
+                '   <div class="w2ui-calendar-title">시간 선택</div>'+
                 '   <div class="w2ui-calendar-time"><table><tbody><tr>'+
                 '       <td>'+ tmp[0] +'</td>' +
                 '       <td>'+ tmp[1] +'</td>' +
@@ -2773,7 +2773,7 @@
             var h24 = (options.format.indexOf('h24') > -1);
             var tmp = [];
             for (var a = 0; a < 60; a += 5) {
-                var time = (hour > 12 && !h24 ? hour - 12 : hour) + ':' + (a < 10 ? 0 : '') + a + ' ' + (!h24 ? (hour < 12 ? 'am' : 'pm') : '');
+                var time = (hour > 12 && !h24 ? hour - 12 : hour) + ':' + (a < 10 ? 0 : '') + a + ' ' + (!h24 ? (hour < 12 ? 'AM' : 'PM') : '');
                 var tm   = time;
                 var ind  = a < 20 ? 0 : (a < 40 ? 1 : 2);
                 if (!tmp[ind]) tmp[ind] = '';
@@ -2786,7 +2786,7 @@
             }
             var html =
                 '<div class="w2ui-calendar">'+
-                '   <div class="w2ui-calendar-title">'+ w2utils.lang('Select Minute') +'</div>'+
+                '   <div class="w2ui-calendar-title">분단위 선택</div>'+
                 '   <div class="w2ui-calendar-time"><table><tbody><tr>'+
                 '       <td>'+ tmp[0] +'</td>' +
                 '       <td>'+ tmp[1] +'</td>' +
@@ -2802,7 +2802,7 @@
             if (tmp.length === 2) {
                 tmp[0] = parseInt(tmp[0]);
                 tmp[1] = parseInt(tmp[1]);
-                if (str.indexOf('pm') !== -1 && tmp[0] !== 12) tmp[0] += 12;
+                if (str.indexOf('PM') !== -1 && tmp[0] !== 12) tmp[0] += 12;
             } else {
                 return null;
             }
@@ -2820,7 +2820,7 @@
             if (options.format.indexOf('h24') !== -1) {
                 ret = hour + ':' + min;
             } else {
-                ret = (hour <= 12 ? hour : hour - 12) + ':' + min + ' ' + (hour >= 12 ? 'pm' : 'am');
+                ret = (hour <= 12 ? hour : hour - 12) + ':' + min + ' ' + (hour >= 12 ? 'PM' : 'AM');
             }
             return ret;
         }
